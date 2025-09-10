@@ -1,78 +1,47 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# asg_dashboard_setup.sh
-# - Enables Auto Scaling "group metrics" for every ASG in each region you pass
-# - Creates/updates a CloudWatch dashboard named ASG-Overview-<region> per region
-#   with dynamic widgets that include all ASGs (no hardcoding)
-
-# Usage:
-#   ./asg_dashboard_setup.sh us-east-1 eu-west-1
-#   ./asg_dashboard_setup.sh   # uses aws configure get region
+REGION="us-east-1"
+DASHBOARD_NAME="ASG-Overview"
 
 if ! command -v aws >/dev/null 2>&1; then
   echo "AWS CLI not found. Install and configure it first." >&2
   exit 1
 fi
 
-# Determine regions to operate on
-if [ "$#" -eq 0 ]; then
-  DEFAULT_REGION="$(aws configure get region || true)"
-  if [ -z "${DEFAULT_REGION:-}" ]; then
-    echo "No region args and no default region configured. Pass at least one region." >&2
-    exit 1
-  fi
-  REGIONS=("$DEFAULT_REGION")
-else
-  REGIONS=("$@")
-fi
-
-# Verify AWS identity (will also fail fast if auth is broken)
+# Verify auth
 aws sts get-caller-identity >/dev/null
 
-enable_group_metrics() {
-  local region="$1"
-  echo "Enabling ASG group metrics in ${region} (idempotent)..."
-  # Get all ASG names (handles pagination)
-  mapfile -t ASGS < <(aws autoscaling describe-auto-scaling-groups \
-      --region "$region" \
-      --query 'AutoScalingGroups[].AutoScalingGroupName' \
-      --output text | tr '\t' '\n' | sed '/^$/d' || true)
+echo "Region: ${REGION}"
 
-  if [ "${#ASGS[@]}" -eq 0 ]; then
-    echo "No Auto Scaling groups found in ${region}. Continuing."
-    return 0
-  fi
+# 1) Enable ASG group metrics for every ASG (idempotent)
+echo "Enabling Auto Scaling group metrics for all ASGs in ${REGION}..."
+mapfile -t ASGS < <(aws autoscaling describe-auto-scaling-groups \
+  --region "$REGION" \
+  --query 'AutoScalingGroups[].AutoScalingGroupName' \
+  --output text | tr '\t' '\n' | sed '/^$/d' || true)
 
+if [ "${#ASGS[@]}" -eq 0 ]; then
+  echo "No Auto Scaling groups found in ${REGION}. Continuing to dashboard creation."
+else
   for asg in "${ASGS[@]}"; do
     aws autoscaling enable-metrics-collection \
-      --region "$region" \
+      --region "$REGION" \
       --auto-scaling-group-name "$asg" \
       --granularity 1Minute >/dev/null || true
   done
-}
+fi
 
-put_dashboard() {
-  local region="$1"
-  local dash="ASG-Overview-${region}"
-  local tmp_json
-  tmp_json="$(mktemp /tmp/asg-dash.XXXXXX.json)"
-
-  # Dashboard widgets:
-  # 1) Desired vs InService (per ASG)
-  # 2) Pending vs Terminating (per ASG)
-  # 3) Total vs Standby (per ASG)
-  # 4) Instance StatusCheckFailed (per instance, grouped by ASG)
-  # 5) CPUUtilization (per instance, grouped by ASG)
-  # All widgets are dynamic via AutoScalingGroupName="*"
-  cat >"$tmp_json" <<JSON
+# 2) Create dashboard JSON (no SEARCH(); fully dynamic via AutoScalingGroupName="*")
+tmp_json="$(mktemp /tmp/asg-dash.XXXXXX.json)"
+cat >"$tmp_json" <<JSON
 {
   "widgets": [
     {
       "type": "metric", "x": 0, "y": 0, "width": 24, "height": 7,
       "properties": {
         "title": "ASG Capacity (Desired / InService)",
-        "region": "${region}", "view": "timeSeries", "stat": "Average", "period": 60,
+        "region": "${REGION}", "view": "timeSeries", "stat": "Average", "period": 60,
         "metrics": [
           [ "AWS/AutoScaling", "GroupDesiredCapacity", "AutoScalingGroupName", "*" ],
           [ ".", "GroupInServiceInstances", ".", "*" ]
@@ -84,7 +53,7 @@ put_dashboard() {
       "type": "metric", "x": 0, "y": 7, "width": 24, "height": 7,
       "properties": {
         "title": "ASG Pending / Terminating",
-        "region": "${region}", "view": "timeSeries", "stat": "Average", "period": 60,
+        "region": "${REGION}", "view": "timeSeries", "stat": "Average", "period": 60,
         "metrics": [
           [ "AWS/AutoScaling", "GroupPendingInstances", "AutoScalingGroupName", "*" ],
           [ ".", "GroupTerminatingInstances", ".", "*" ]
@@ -96,7 +65,7 @@ put_dashboard() {
       "type": "metric", "x": 0, "y": 14, "width": 24, "height": 7,
       "properties": {
         "title": "ASG Total / Standby",
-        "region": "${region}", "view": "timeSeries", "stat": "Average", "period": 60,
+        "region": "${REGION}", "view": "timeSeries", "stat": "Average", "period": 60,
         "metrics": [
           [ "AWS/AutoScaling", "GroupTotalInstances", "AutoScalingGroupName", "*" ],
           [ ".", "GroupStandbyInstances", ".", "*" ]
@@ -107,10 +76,10 @@ put_dashboard() {
     {
       "type": "metric", "x": 0, "y": 21, "width": 24, "height": 7,
       "properties": {
-        "title": "EC2 StatusCheckFailed (per instance, grouped by ASG)",
-        "region": "${region}", "view": "timeSeries", "stat": "Maximum", "period": 60,
+        "title": "EC2 StatusCheckFailed (aggregated by ASG)",
+        "region": "${REGION}", "view": "timeSeries", "stat": "Maximum", "period": 60,
         "metrics": [
-          [ "AWS/EC2", "StatusCheckFailed", "AutoScalingGroupName", "*", "InstanceId", "*" ]
+          [ "AWS/EC2", "StatusCheckFailed", "AutoScalingGroupName", "*" ]
         ],
         "yAxis": { "left": { "min": 0 } },
         "legend": { "position": "right" }
@@ -119,10 +88,10 @@ put_dashboard() {
     {
       "type": "metric", "x": 0, "y": 28, "width": 24, "height": 7,
       "properties": {
-        "title": "CPUUtilization (per instance, grouped by ASG)",
-        "region": "${region}", "view": "timeSeries", "stat": "Average", "period": 300,
+        "title": "CPUUtilization (aggregated by ASG)",
+        "region": "${REGION}", "view": "timeSeries", "stat": "Average", "period": 300,
         "metrics": [
-          [ "AWS/EC2", "CPUUtilization", "AutoScalingGroupName", "*", "InstanceId", "*" ]
+          [ "AWS/EC2", "CPUUtilization", "AutoScalingGroupName", "*" ]
         ],
         "legend": { "position": "right" }
       }
@@ -131,20 +100,11 @@ put_dashboard() {
 }
 JSON
 
-  echo "Creating/updating dashboard ${dash} in ${region}..."
-  aws cloudwatch put-dashboard \
-    --region "$region" \
-    --dashboard-name "$dash" \
-    --dashboard-body "file://${tmp_json}" >/dev/null
+echo "Creating/updating CloudWatch dashboard: ${DASHBOARD_NAME} ..."
+aws cloudwatch put-dashboard \
+  --region "$REGION" \
+  --dashboard-name "$DASHBOARD_NAME" \
+  --dashboard-body "file://${tmp_json}" >/dev/null
 
-  rm -f "$tmp_json"
-  echo "Dashboard ready: CloudWatch → Dashboards → ${dash}"
-}
-
-for r in "${REGIONS[@]}"; do
-  echo "----- Region: ${r} -----"
-  enable_group_metrics "$r"
-  put_dashboard "$r"
-done
-
-echo "All done."
+rm -f "$tmp_json"
+echo "Done. Open CloudWatch → Dashboards → ${DASHBOARD_NAME} (region ${REGION})."
