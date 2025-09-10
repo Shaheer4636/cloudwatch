@@ -2,139 +2,144 @@
 set -euo pipefail
 
 REGION="us-east-1"
-DASHBOARD_NAME="AmazonMQ-Overview"
+DASHBOARD_NAME="AmazonMQ-Overview-us-east-1"
 
 if ! command -v aws >/dev/null 2>&1; then
-  echo "AWS CLI not found. Install and configure it first." >&2
-  exit 1
+  echo "AWS CLI not found." >&2; exit 1
 fi
 
-# Verify auth
 aws sts get-caller-identity >/dev/null
 
-tmp_json="$(mktemp /tmp/amazonmq-dash.XXXXXX.json)"
+TMP_JSON="$(mktemp /tmp/mq-dash.XXXXXX.json)"
 
-# Notes:
-# - Namespace is AWS/AmazonMQ (covers ActiveMQ and RabbitMQ).
-# - We key SEARCH on {Broker} only so it matches metrics that also carry Queue/Topic/etc.
-# - If a metric doesn't exist for your engine, the widget just renders "no data" (no errors).
-
-cat >"$tmp_json" <<JSON
+# Static JSON with correct metric names and no trailing commas.
+# It includes RabbitMQ and ActiveMQ sections; widgets simply show no data if that engine isn't used.
+cat >"$TMP_JSON" <<'JSON'
 {
   "widgets": [
     {
-      "type": "metric", "x": 0, "y": 0, "width": 24, "height": 6,
-      "properties": {
-        "title": "Publish rate (by broker / destination)",
-        "region": "${REGION}", "view": "timeSeries", "stat": "Sum", "period": 60,
-        "metrics": [
-          [
-            { "expression": "SEARCH('{AWS/AmazonMQ,Broker} MetricName=\\\"PublishRate\\\"', 'Sum', 60)", "label": "PublishRate", "id": "e1" }
-          ]
-        ],
-        "legend": { "position": "right" }
-      }
-    },
-    {
-      "type": "metric", "x": 0, "y": 6, "width": 24, "height": 6,
-      "properties": {
-        "title": "Ack rate (by broker / destination)",
-        "region": "${REGION}", "view": "timeSeries", "stat": "Sum", "period": 60,
-        "metrics": [
-          [
-            { "expression": "SEARCH('{AWS/AmazonMQ,Broker} MetricName=\\\"AckRate\\\"', 'Sum', 60)", "label": "AckRate", "id": "e2" }
-          ]
-        ],
-        "legend": { "position": "right" }
-      }
-    },
-    {
-      "type": "metric", "x": 0, "y": 12, "width": 24, "height": 6,
-      "properties": {
-        "title": "Enqueue time (ms, average)",
-        "region": "${REGION}", "view": "timeSeries", "stat": "Average", "period": 60,
-        "metrics": [
-          [
-            { "expression": "SEARCH('{AWS/AmazonMQ,Broker} MetricName=\\\"EnqueueTime\\\"', 'Average', 60)", "label": "EnqueueTime", "id": "e3" }
-          ]
-        ],
-        "legend": { "position": "right" }
-      }
-    },
-    {
-      "type": "metric", "x": 0, "y": 18, "width": 24, "height": 6,
-      "properties": {
-        "title": "Storage utilization per broker (%)",
-        "region": "${REGION}", "view": "timeSeries", "stat": "Average", "period": 300,
-        "metrics": [
-          [
-            { "expression": "SEARCH('{AWS/AmazonMQ,Broker} MetricName=\\\"StorageUtilization\\\"', 'Average', 300)", "label": "StorageUtilization", "id": "e4" }
-          ],
-          [
-            { "expression": "SEARCH('{AWS/AmazonMQ,Broker} MetricName=\\\"StorageUsage\\\"', 'Average', 300)", "label": "StorageUsage", "id": "e4b" }
-          ],
-          [
-            { "expression": "SEARCH('{AWS/AmazonMQ,Broker} MetricName=\\\"StorageLimitUsage\\\"', 'Average', 300)", "label": "StorageLimitUsage", "id": "e4c" }
-          ]
+      "type":"metric","x":0,"y":0,"width":24,"height":6,
+      "properties":{
+        "title":"RabbitMQ: Publish / Ack / Confirm (msg/s)",
+        "region":"us-east-1","view":"timeSeries","stat":"Sum","period":60,
+        "metrics":[
+          ["AWS/AmazonMQ","PublishRate","Broker","*"],
+          [".","AckRate",".","*"],
+          [".","ConfirmRate",".","*"]
         ]
       }
     },
     {
-      "type": "metric", "x": 0, "y": 24, "width": 24, "height": 6,
-      "properties": {
-        "title": "Producer count (by broker / destination)",
-        "region": "${REGION}", "view": "timeSeries", "stat": "Maximum", "period": 60,
-        "metrics": [
-          [
-            { "expression": "SEARCH('{AWS/AmazonMQ,Broker} MetricName=\\\"ProducerCount\\\"', 'Maximum', 60)", "label": "ProducerCount", "id": "e5" }
-          ]
+      "type":"metric","x":0,"y":6,"width":24,"height":6,
+      "properties":{
+        "title":"RabbitMQ: MessageCount / Ready / Unacked",
+        "region":"us-east-1","view":"timeSeries","stat":"Average","period":60,
+        "metrics":[
+          ["AWS/AmazonMQ","MessageCount","Broker","*"],
+          [".","MessageReadyCount",".","*"],
+          [".","MessageUnacknowledgedCount",".","*"]
         ],
-        "legend": { "position": "right" },
-        "yAxis": { "left": { "min": 0 } }
+        "yAxis":{"left":{"min":0}}
       }
     },
     {
-      "type": "metric", "x": 0, "y": 30, "width": 24, "height": 6,
-      "properties": {
-        "title": "Consumer count (by broker / destination)",
-        "region": "${REGION}", "view": "timeSeries", "stat": "Maximum", "period": 60,
-        "metrics": [
-          [
-            { "expression": "SEARCH('{AWS/AmazonMQ,Broker} MetricName=\\\"ConsumerCount\\\"', 'Maximum', 60)", "label": "ConsumerCount", "id": "e6" }
-          ]
+      "type":"metric","x":0,"y":12,"width":24,"height":6,
+      "properties":{
+        "title":"RabbitMQ: Connections / Channels / Consumers",
+        "region":"us-east-1","view":"timeSeries","stat":"Average","period":60,
+        "metrics":[
+          ["AWS/AmazonMQ","ConnectionCount","Broker","*"],
+          [".","ChannelCount",".","*"],
+          [".","ConsumerCount",".","*"]
         ],
-        "legend": { "position": "right" },
-        "yAxis": { "left": { "min": 0 } }
+        "yAxis":{"left":{"min":0}}
       }
     },
     {
-      "type": "metric", "x": 0, "y": 36, "width": 24, "height": 6,
-      "properties": {
-        "title": "Messages depth (ready / unacked)",
-        "region": "${REGION}", "view": "timeSeries", "stat": "Average", "period": 60,
-        "metrics": [
-          [
-            { "expression": "SEARCH('{AWS/AmazonMQ,Broker} MetricName=\\\"MessagesReady\\\"', 'Average', 60)", "label": "MessagesReady", "id": "e7" }
-          ],
-          [
-            { "expression": "SEARCH('{AWS/AmazonMQ,Broker} MetricName=\\\"MessagesUnacked\\\"', 'Average', 60)", "label": "MessagesUnacked", "id": "e8" }
-          ],
-          [
-            { "expression": "SEARCH('{AWS/AmazonMQ,Broker} MetricName=\\\"Messages\\\"', 'Average', 60)", "label": "Messages", "id": "e8b" }
-          ]
+      "type":"metric","x":0,"y":18,"width":24,"height":6,
+      "properties":{
+        "title":"RabbitMQ: CPU Utilization",
+        "region":"us-east-1","view":"timeSeries","stat":"Average","period":60,
+        "metrics":[
+          ["AWS/AmazonMQ","CpuUtilization","Broker","*"]
+        ]
+      }
+    },
+
+    {
+      "type":"metric","x":0,"y":24,"width":24,"height":6,
+      "properties":{
+        "title":"ActiveMQ: Producers / Consumers / TotalMessageCount",
+        "region":"us-east-1","view":"timeSeries","stat":"Average","period":60,
+        "metrics":[
+          ["AWS/AmazonMQ","TotalProducerCount","Broker","*"],
+          [".","TotalConsumerCount",".","*"],
+          [".","TotalMessageCount",".","*"]
         ],
-        "legend": { "position": "right" }
+        "yAxis":{"left":{"min":0}}
+      }
+    },
+    {
+      "type":"metric","x":0,"y":30,"width":24,"height":6,
+      "properties":{
+        "title":"ActiveMQ: Store% / Temp% / HeapUsage",
+        "region":"us-east-1","view":"timeSeries","stat":"Average","period":60,
+        "metrics":[
+          ["AWS/AmazonMQ","StorePercentUsage","Broker","*"],
+          [".","TempPercentUsage",".","*"],
+          [".","HeapUsage",".","*"]
+        ]
+      }
+    },
+    {
+      "type":"metric","x":0,"y":36,"width":24,"height":6,
+      "properties":{
+        "title":"ActiveMQ: Connections / CPU / Network",
+        "region":"us-east-1","view":"timeSeries","period":60,
+        "metrics":[
+          ["AWS/AmazonMQ","CurrentConnectionsCount","Broker","*"],
+          [".","CpuUtilization",".","*"],
+          [".","NetworkIn",".","*"],
+          [".","NetworkOut",".","*"]
+        ]
+      }
+    },
+    {
+      "type":"metric","x":0,"y":42,"width":24,"height":6,
+      "properties":{
+        "title":"ActiveMQ: Journal files to replay",
+        "region":"us-east-1","view":"timeSeries","stat":"Average","period":60,
+        "metrics":[
+          ["AWS/AmazonMQ","JournalFilesForFastRecovery","Broker","*"],
+          [".","JournalFilesForFullRecovery",".","*"]
+        ]
+      }
+    },
+    {
+      "type":"metric","x":0,"y":48,"width":24,"height":6,
+      "properties":{
+        "title":"ActiveMQ: TotalEnqueue / TotalDequeue",
+        "region":"us-east-1","view":"timeSeries","stat":"Sum","period":300,
+        "metrics":[
+          ["AWS/AmazonMQ","TotalEnqueueCount","Broker","*"],
+          [".","TotalDequeueCount",".","*"]
+        ]
       }
     }
   ]
 }
 JSON
 
-echo "Creating/updating CloudWatch dashboard: ${DASHBOARD_NAME} in ${REGION} ..."
+# Optional: validate JSON locally if jq exists
+if command -v jq >/dev/null 2>&1; then
+  jq . "$TMP_JSON" >/dev/null
+fi
+
+echo "Creating/updating CloudWatch dashboard: $DASHBOARD_NAME in $REGION ..."
 aws cloudwatch put-dashboard \
   --region "$REGION" \
   --dashboard-name "$DASHBOARD_NAME" \
-  --dashboard-body "file://${tmp_json}" >/dev/null
+  --dashboard-body "file://$TMP_JSON" >/dev/null
 
-rm -f "$tmp_json"
-echo "Done. Open CloudWatch → Dashboards → ${DASHBOARD_NAME} (region ${REGION})."
+rm -f "$TMP_JSON"
+echo "Done. Open CloudWatch → Dashboards → $DASHBOARD_NAME (region $REGION)."
