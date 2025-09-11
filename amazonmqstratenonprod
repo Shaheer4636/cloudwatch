@@ -1,1 +1,254 @@
-{"title":"Amazon MQ (Strata-idev)","description":"This dashboard visualizes the activity level of your Amazon MQ broker, so you can understand the volume of your messaging and see whether consumers are keeping up with producers. For more information about Amazon MQ:\n\n- [Amazon MQ integration documentation](https://docs.datadoghq.com/integrations/amazon_mq/)\n\n- [Monitoring Amazon MQ with Datadog](https://www.datadoghq.com/blog/monitor-amazonmq-metrics-with-datadog/)\n\nClone this template dashboard to make changes and add your own graph widgets. (cloned)","widgets":[{"id":0,"layout":{"x":1,"y":15,"width":18,"height":10},"definition":{"title":"Total producers","title_size":"16","title_align":"left","time":{"live_span":"30m"},"type":"query_value","requests":[{"response_format":"scalar","queries":[{"data_source":"metrics","name":"query1","query":"sum:aws.amazonmq.producer_count.maximum{$scope}.as_count()","aggregator":"max"}]}],"autoscale":true,"custom_links":[],"precision":0}},{"id":1,"layout":{"x":1,"y":26,"width":18,"height":10},"definition":{"title":"Total consumers","title_size":"16","title_align":"left","time":{"live_span":"30m"},"type":"query_value","requests":[{"response_format":"scalar","queries":[{"data_source":"metrics","name":"query1","query":"sum:aws.amazonmq.consumer_count.maximum{$scope}.as_count()","aggregator":"max"}]}],"autoscale":true,"custom_links":[],"precision":0}},{"id":2,"layout":{"x":34,"y":92,"width":44,"height":17},"definition":{"title":"CPU utilization per broker (%)","title_size":"16","title_align":"left","show_legend":false,"legend_size":"0","type":"timeseries","requests":[{"response_format":"timeseries","queries":[{"data_source":"metrics","name":"query1","query":"avg:aws.amazonmq.cpu_utilization{$scope,$broker} by {broker}"}],"style":{"palette":"warm","line_type":"solid","line_width":"normal"},"display_type":"line"}],"custom_links":[]}},{"id":3,"layout":{"x":124,"y":56,"width":44,"height":17},"definition":{"title":"Queue size per queue (messages)","title_size":"16","title_align":"left","show_legend":false,"legend_size":"0","type":"timeseries","requests":[{"response_format":"timeseries","queries":[{"data_source":"metrics","name":"query1","query":"sum:aws.amazonmq.queue_size{$scope,$broker,$queue,$topic} by {queue}.as_count()"}],"style":{"palette":"dog_classic","line_type":"solid","line_width":"normal"},"display_type":"bars"}],"custom_links":[]}},{"id":4,"layout":{"x":5,"y":96,"width":44,"height":17},"definition":{"title":"Heap usage per broker (%)","title_size":"16","title_align":"left","show_legend":false,"legend_size":"0","type":"timeseries","requests":[{"response_format":"timeseries","queries":[{"data_source":"metrics","name":"query1","query":"avg:aws.amazonmq.heap_usage{$scope,$broker} by {broker}"}],"style":{"palette":"cool","line_type":"solid","line_width":"normal"},"display_type":"line"}],"custom_links":[]}},{"id":5,"layout":{"x":34,"y":38,"width":44,"height":17},"definition":{"title":"Total messages sent per destination","title_size":"16","title_align":"left","show_legend":false,"legend_size":"0","type":"timeseries","requests":[{"response_format":"timeseries","queries":[{"data_source":"metrics","name":"query1","query":"sum:aws.amazonmq.enqueue_count{$scope,$broker,$queue,$topic} by {queue}.as_count()"},{"data_source":"metrics","name":"query2","query":"sum:aws.amazonmq.enqueue_count{$scope,$broker,$queue,$topic} by {topic}.as_count()"}],"formulas":[{"formula":"exclude_null(query1)"},{"formula":"exclude_null(query2)"}],"style":{"palette":"green","line_type":"solid","line_width":"normal"},"display_type":"bars"}],"custom_links":[]}},{"id":6,"layout":{"x":34,"y":56,"width":44,"height":17},"definition":{"title":"Total messages received per destination","title_size":"16","title_align":"left","show_legend":false,"legend_size":"0","type":"timeseries","requests":[{"response_format":"timeseries","queries":[{"data_source":"metrics","name":"query1","query":"sum:aws.amazonmq.dequeue_count{$scope,$broker,$queue,$topic} by {topic}.as_count()"},{"data_source":"metrics","name":"query2","query":"sum:aws.amazonmq.dequeue_count{$scope,$broker,$queue,$topic} by {queue}.as_count()"}],"formulas":[{"formula":"exclude_null(query1)"},{"formula":"exclude_null(query2)"}],"style":{"palette":"purple","line_type":"solid","line_width":"normal"},"display_type":"bars"}],"custom_links":[]}},{"id":7,"layout":{"x":21,"y":1,"width":12,"height":35},"definition":{"type":"note","content":"Broker resource metrics","background_color":"blue","font_size":"18","text_align":"center","show_tick":true,"tick_pos":"50%","tick_edge":"right"}},{"id":8,"layout":{"x":79,"y":91,"width":44,"height":17},"definition":{"title":"Total consumers per broker","title_size":"16","title_align":"left","show_legend":false,"legend_size":"0","type":"timeseries","requests":[{"response_format":"timeseries","queries":[{"data_source":"metrics","name":"query1","query":"sum:aws.amazonmq.total_consumer_count{$scope,$broker} by {broker}"}],"style":{"palette":"dog_classic","line_type":"solid","line_width":"normal"},"display_type":"bars"}],"custom_links":[]}},{"id":9,"layout":{"x":79,"y":1,"width":44,"height":17},"definition":{"title":"Storage limit usage per broker (%)","title_size":"16","title_align":"left","show_legend":false,"legend_size":"0","type":"timeseries","requests":[{"response_format":"timeseries","queries":[{"data_source":"metrics","name":"query1","query":"avg:aws.amazonmq.store_percent_usage{$scope,$broker} by {broker}"}],"style":{"palette":"dog_classic","line_type":"solid","line_width":"normal"},"display_type":"area"}],"custom_links":[]}},{"id":10,"layout":{"x":124,"y":1,"width":44,"height":17},"definition":{"title":"Network in per broker (bytes)","title_size":"16","title_align":"left","show_legend":false,"legend_size":"0","type":"timeseries","requests":[{"response_format":"timeseries","queries":[{"data_source":"metrics","name":"query1","query":"avg:aws.amazonmq.network_in{$scope,$broker} by {broker}"}],"style":{"palette":"green","line_type":"solid","line_width":"normal"},"display_type":"line"}],"custom_links":[]}},{"id":11,"layout":{"x":124,"y":19,"width":45,"height":17},"definition":{"title":"Network out per broker (bytes)","title_size":"16","title_align":"left","show_legend":false,"legend_size":"0","type":"timeseries","requests":[{"response_format":"timeseries","queries":[{"data_source":"metrics","name":"query1","query":"avg:aws.amazonmq.network_out{$scope,$broker} by {broker}"}],"style":{"palette":"purple","line_type":"solid","line_width":"normal"},"display_type":"line"}],"custom_links":[]}},{"id":12,"layout":{"x":21,"y":38,"width":12,"height":53},"definition":{"type":"note","content":"Destination metrics","background_color":"blue","font_size":"18","text_align":"center","show_tick":true,"tick_pos":"50%","tick_edge":"right"}},{"id":13,"layout":{"x":124,"y":38,"width":44,"height":17},"definition":{"title":"Expired count per destination (messages)","title_size":"16","title_align":"left","show_legend":false,"legend_size":"0","type":"timeseries","requests":[{"response_format":"timeseries","queries":[{"data_source":"metrics","name":"query1","query":"sum:aws.amazonmq.expired_count{$scope,$broker,$queue,$topic} by {topic}.as_count()"},{"data_source":"metrics","name":"query2","query":"sum:aws.amazonmq.expired_count{$scope,$broker,$queue,$topic} by {queue}.as_count()"}],"formulas":[{"formula":"exclude_null(query1)"},{"formula":"exclude_null(query2)"}],"style":{"palette":"warm","line_type":"solid","line_width":"normal"},"display_type":"bars"}],"custom_links":[]}},{"id":14,"layout":{"x":1,"y":1,"width":18,"height":12},"definition":{"type":"image","url":"/static/images/logos/amazon-mq_avatar.svg","sizing":"fit","margin":"large"}},{"id":15,"layout":{"x":79,"y":56,"width":44,"height":17},"definition":{"title":"Subscribed consumers per destination","title_size":"16","title_align":"left","show_legend":false,"legend_size":"0","type":"timeseries","requests":[{"response_format":"timeseries","queries":[{"data_source":"metrics","name":"query1","query":"sum:aws.amazonmq.consumer_count{$scope,$broker,$queue,$topic} by {topic}.as_count()"},{"data_source":"metrics","name":"query2","query":"sum:aws.amazonmq.consumer_count{$scope,$broker,$queue,$topic} by {queue}.as_count()"}],"formulas":[{"formula":"exclude_null(query1)"},{"formula":"exclude_null(query2)"}],"style":{"palette":"dog_classic","line_type":"solid","line_width":"normal"},"display_type":"bars"}],"custom_links":[]}},{"id":16,"layout":{"x":79,"y":38,"width":44,"height":17},"definition":{"title":"Producers per destination","title_size":"16","title_align":"left","show_legend":false,"legend_size":"0","type":"timeseries","requests":[{"response_format":"timeseries","queries":[{"data_source":"metrics","name":"query1","query":"sum:aws.amazonmq.producer_count{$scope,$broker,$queue,$topic} by {topic}.as_count()"},{"data_source":"metrics","name":"query2","query":"sum:aws.amazonmq.producer_count{$scope,$broker,$queue,$topic} by {queue}.as_count()"}],"formulas":[{"formula":"exclude_null(query1)"},{"formula":"exclude_null(query2)"}],"style":{"palette":"dog_classic","line_type":"solid","line_width":"normal"},"display_type":"bars"}],"custom_links":[]}},{"id":17,"layout":{"x":1,"y":46,"width":18,"height":9},"definition":{"title":"Clean shutdown","title_size":"16","title_align":"left","time":{"live_span":"30m"},"type":"query_value","requests":[{"response_format":"scalar","queries":[{"data_source":"metrics","name":"query1","query":"max:aws.amazonmq.journal_files_for_fast_recovery{$scope,$broker,$queue,$topic}","aggregator":"max"}]}],"autoscale":true,"custom_links":[],"precision":2}},{"id":18,"layout":{"x":1,"y":56,"width":18,"height":9},"definition":{"title":"Unclean shutdown","title_size":"16","title_align":"left","time":{"live_span":"30m"},"type":"query_value","requests":[{"response_format":"scalar","queries":[{"data_source":"metrics","name":"query1","query":"max:aws.amazonmq.journal_files_for_full_recovery{*}","aggregator":"max"}]}],"autoscale":true,"custom_links":[],"precision":0}},{"id":19,"layout":{"x":1,"y":38,"width":18,"height":7},"definition":{"type":"note","content":"Journal files to be replayed on broker restart","background_color":"pink","font_size":"14","text_align":"center","show_tick":true,"tick_pos":"50%","tick_edge":"bottom"}},{"id":20,"layout":{"x":124,"y":74,"width":44,"height":17},"definition":{"title":"Broker message latency per destination (ms)","title_size":"16","title_align":"left","show_legend":false,"legend_size":"0","type":"timeseries","requests":[{"response_format":"timeseries","queries":[{"data_source":"metrics","name":"query1","query":"avg:aws.amazonmq.enqueue_time{$scope,$broker,$queue,$topic} by {topic}"},{"data_source":"metrics","name":"query2","query":"avg:aws.amazonmq.enqueue_time{$scope,$broker,$queue,$topic} by {queue}"}],"formulas":[{"formula":"exclude_null(query1)"},{"formula":"exclude_null(query2)"}],"style":{"palette":"cool","line_type":"solid","line_width":"normal"},"display_type":"line"}],"custom_links":[]}},{"id":21,"layout":{"x":34,"y":74,"width":44,"height":17},"definition":{"title":"Total messages sent to consumers","title_size":"16","title_align":"left","show_legend":false,"legend_size":"0","type":"timeseries","requests":[{"response_format":"timeseries","queries":[{"data_source":"metrics","name":"query1","query":"sum:aws.amazonmq.dispatch_count{$scope,$broker,$topic,$queue} by {topic}.as_count()"},{"data_source":"metrics","name":"query2","query":"sum:aws.amazonmq.dispatch_count{$scope,$broker,$topic,$queue} by {queue}.as_count()"}],"formulas":[{"formula":"exclude_null(query1)"},{"formula":"exclude_null(query2)"}],"style":{"palette":"dog_classic","line_type":"solid","line_width":"normal"},"display_type":"bars"}],"custom_links":[]}},{"id":22,"layout":{"x":79,"y":74,"width":44,"height":17},"definition":{"title":"Avg memory limit usage per destination (%)","title_size":"16","title_align":"left","show_legend":false,"legend_size":"0","type":"timeseries","requests":[{"response_format":"timeseries","queries":[{"data_source":"metrics","name":"query1","query":"avg:aws.amazonmq.memory_usage{$scope,$broker,$queue,$topic} by {topic}"}],"formulas":[{"formula":"exclude_null(query1)"},{"formula":"exclude_null(query1)"}],"style":{"palette":"dog_classic","line_type":"solid","line_width":"normal"},"display_type":"area"}],"custom_links":[]}},{"id":2057308989656493,"layout":{"x":34,"y":1,"width":45,"height":17},"definition":{"title":"","title_size":"16","title_align":"left","show_legend":false,"type":"timeseries","requests":[{"response_format":"timeseries","queries":[{"data_source":"metrics","name":"query1","query":"sum:aws.amazonmq.ack_rate{*}.as_count()"}],"formulas":[{"formula":"query1"}],"style":{"palette":"dog_classic","line_type":"solid","line_width":"normal"},"display_type":"line"}]}},{"id":2811700833410312,"layout":{"x":79,"y":19,"width":44,"height":17},"definition":{"title":"","title_size":"16","title_align":"left","show_legend":false,"type":"timeseries","requests":[{"response_format":"timeseries","queries":[{"data_source":"metrics","name":"query1","query":"sum:aws.amazonmq.publish_rate{*}.as_count()"}],"formulas":[{"formula":"query1"}],"style":{"palette":"dog_classic","line_type":"solid","line_width":"normal"},"display_type":"line"}]}},{"id":7903856420107510,"layout":{"x":34,"y":19,"width":44,"height":17},"definition":{"title":"","title_size":"16","title_align":"left","show_legend":false,"type":"timeseries","requests":[{"response_format":"timeseries","queries":[{"name":"query1","data_source":"metrics","query":"avg:aws.amazonmq.enqueue_time{*}"}],"formulas":[{"formula":"query1"}],"style":{"palette":"dog_classic","line_type":"solid","line_width":"normal"},"display_type":"line"}]}}],"template_variables":[{"name":"scope","available_values":[],"default":"*"},{"name":"broker","prefix":"broker","available_values":[],"default":"*"},{"name":"queue","prefix":"queue","available_values":[],"default":"*"},{"name":"topic","prefix":"topic","available_values":[],"default":"*"}],"layout_type":"free","notify_list":[],"template_variable_presets":[{"name":"Strata-idev-RabbitMQ","template_variables":[{"name":"scope","value":"application_name:strata-idev-rabbitmq"}]}]}
+{
+  "widgets": [
+    {
+      "type": "text",
+      "x": 0, "y": 0, "width": 24, "height": 2,
+      "properties": { "markdown": "# Amazon MQ (Strata-idev)" }
+    },
+
+    /* ---- Totals (single values) ---- */
+    {
+      "type": "metric",
+      "x": 0, "y": 2, "width": 6, "height": 6,
+      "properties": {
+        "title": "Total producers",
+        "view": "singleValue",
+        "region": "${Region}",
+        "metrics": [
+          [ "AWS/AmazonMQ", "TotalProducerCount", "Broker", "${Broker}", { "stat": "Maximum" } ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 6, "y": 2, "width": 6, "height": 6,
+      "properties": {
+        "title": "Total consumers",
+        "view": "singleValue",
+        "region": "${Region}",
+        "metrics": [
+          [ "AWS/AmazonMQ", "TotalConsumerCount", "Broker", "${Broker}", { "stat": "Maximum" } ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12, "y": 2, "width": 6, "height": 6,
+      "properties": {
+        "title": "Clean shutdown (journal files)",
+        "view": "singleValue",
+        "region": "${Region}",
+        "metrics": [
+          [ "AWS/AmazonMQ", "JournalFilesForFastRecovery", "Broker", "${Broker}", { "stat": "Maximum" } ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 18, "y": 2, "width": 6, "height": 6,
+      "properties": {
+        "title": "Unclean shutdown (journal files)",
+        "view": "singleValue",
+        "region": "${Region}",
+        "metrics": [
+          [ "AWS/AmazonMQ", "JournalFilesForFullRecovery", "Broker", "${Broker}", { "stat": "Maximum" } ]
+        ]
+      }
+    },
+
+    /* ---- Broker resource ---- */
+    {
+      "type": "metric",
+      "x": 0, "y": 8, "width": 12, "height": 6,
+      "properties": {
+        "title": "CPU utilization per broker (%)",
+        "view": "timeSeries",
+        "region": "${Region}",
+        "stat": "Average",
+        "metrics": [
+          [ "AWS/AmazonMQ", "CpuUtilization", "Broker", "${Broker}" ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12, "y": 8, "width": 12, "height": 6,
+      "properties": {
+        "title": "Heap usage per broker (%)",
+        "view": "timeSeries",
+        "region": "${Region}",
+        "stat": "Average",
+        "metrics": [
+          [ "AWS/AmazonMQ", "HeapUsage", "Broker", "${Broker}" ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0, "y": 14, "width": 12, "height": 6,
+      "properties": {
+        "title": "Storage limit usage per broker (%)",
+        "view": "timeSeries",
+        "region": "${Region}",
+        "stat": "Average",
+        "metrics": [
+          [ "AWS/AmazonMQ", "StorePercentUsage", "Broker", "${Broker}" ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12, "y": 14, "width": 12, "height": 6,
+      "properties": {
+        "title": "Network In/Out (bytes)",
+        "view": "timeSeries",
+        "region": "${Region}",
+        "metrics": [
+          [ "AWS/AmazonMQ", "NetworkIn", "Broker", "${Broker}", { "id": "m1", "visible": true } ],
+          [ ".", "NetworkOut", ".", "${Broker}", { "id": "m2", "visible": true } ]
+        ]
+      }
+    },
+
+    /* ---- Destination (queue/topic) ---- */
+    {
+      "type": "metric",
+      "x": 0, "y": 20, "width": 12, "height": 6,
+      "properties": {
+        "title": "Queue size (messages) by queue",
+        "view": "timeSeries",
+        "region": "${Region}",
+        "metrics": [
+          [ "AWS/AmazonMQ", "QueueSize", "Broker", "${Broker}", "Queue", "${Queue}" ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12, "y": 20, "width": 12, "height": 6,
+      "properties": {
+        "title": "Producers per destination",
+        "view": "timeSeries",
+        "region": "${Region}",
+        "metrics": [
+          [ "AWS/AmazonMQ", "ProducerCount", "Broker", "${Broker}", "Topic", "${Topic}" ],
+          [ ".", "ProducerCount", ".", "${Broker}", "Queue", "${Queue}" ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0, "y": 26, "width": 12, "height": 6,
+      "properties": {
+        "title": "Subscribed consumers per destination",
+        "view": "timeSeries",
+        "region": "${Region}",
+        "metrics": [
+          [ "AWS/AmazonMQ", "ConsumerCount", "Broker", "${Broker}", "Topic", "${Topic}" ],
+          [ ".", "ConsumerCount", ".", "${Broker}", "Queue", "${Queue}" ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12, "y": 26, "width": 12, "height": 6,
+      "properties": {
+        "title": "Total messages sent per destination (enqueue)",
+        "view": "timeSeries",
+        "region": "${Region}",
+        "metrics": [
+          [ "AWS/AmazonMQ", "EnqueueCount", "Broker", "${Broker}", "Topic", "${Topic}", { "stat": "Sum" } ],
+          [ ".", "EnqueueCount", ".", "${Broker}", "Queue", "${Queue}", { "stat": "Sum" } ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0, "y": 32, "width": 12, "height": 6,
+      "properties": {
+        "title": "Total messages received per destination (dequeue)",
+        "view": "timeSeries",
+        "region": "${Region}",
+        "metrics": [
+          [ "AWS/AmazonMQ", "DequeueCount", "Broker", "${Broker}", "Topic", "${Topic}", { "stat": "Sum" } ],
+          [ ".", "DequeueCount", ".", "${Broker}", "Queue", "${Queue}", { "stat": "Sum" } ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12, "y": 32, "width": 12, "height": 6,
+      "properties": {
+        "title": "Expired count per destination",
+        "view": "timeSeries",
+        "region": "${Region}",
+        "metrics": [
+          [ "AWS/AmazonMQ", "ExpiredCount", "Broker", "${Broker}", "Topic", "${Topic}", { "stat": "Sum" } ],
+          [ ".", "ExpiredCount", ".", "${Broker}", "Queue", "${Queue}", { "stat": "Sum" } ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0, "y": 38, "width": 12, "height": 6,
+      "properties": {
+        "title": "Broker message latency (EnqueueTime, ms)",
+        "view": "timeSeries",
+        "region": "${Region}",
+        "metrics": [
+          [ "AWS/AmazonMQ", "EnqueueTime", "Broker", "${Broker}", "Topic", "${Topic}", { "stat": "Average" } ],
+          [ ".", "EnqueueTime", ".", "${Broker}", "Queue", "${Queue}", { "stat": "Average" } ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12, "y": 38, "width": 12, "height": 6,
+      "properties": {
+        "title": "Messages dispatched to consumers",
+        "view": "timeSeries",
+        "region": "${Region}",
+        "metrics": [
+          [ "AWS/AmazonMQ", "DispatchCount", "Broker", "${Broker}", "Topic", "${Topic}", { "stat": "Sum" } ],
+          [ ".", "DispatchCount", ".", "${Broker}", "Queue", "${Queue}", { "stat": "Sum" } ]
+        ]
+      }
+    },
+
+    /* ---- RabbitMQ-only rates (if engine = RabbitMQ) ---- */
+    {
+      "type": "metric",
+      "x": 0, "y": 44, "width": 12, "height": 6,
+      "properties": {
+        "title": "Ack rate (msgs/sec)",
+        "view": "timeSeries",
+        "region": "${Region}",
+        "metrics": [
+          [ "AWS/AmazonMQ", "AckRate", "Broker", "${Broker}" ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12, "y": 44, "width": 12, "height": 6,
+      "properties": {
+        "title": "Publish rate (msgs/sec)",
+        "view": "timeSeries",
+        "region": "${Region}",
+        "metrics": [
+          [ "AWS/AmazonMQ", "PublishRate", "Broker", "${Broker}" ]
+        ]
+      }
+    }
+  ],
+
+  "start": "-PT3H",
+  "periodOverride": "auto",
+
+  "variables": [
+    { "type": "property", "name": "Region", "label": "Region", "defaultValue": "us-east-1", "property": "region" },
+    { "type": "property", "name": "Broker", "label": "Broker", "defaultValue": "*", "property": "Broker" },
+    { "type": "property", "name": "Queue", "label": "Queue", "defaultValue": "*", "property": "Queue" },
+    { "type": "property", "name": "Topic", "label": "Topic", "defaultValue": "*", "property": "Topic" }
+  ]
+}
