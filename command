@@ -51,3 +51,10 @@ cat > mqdashboard.json <<'JSON'
   "periodOverride": "auto"
 }
 JSON
+
+
+
+
+aws cloudwatch put-dashboard \
+  --dashboard-name AmazonMQ-RabbitMQ-uat \
+  --dashboard-body file://mqdashboard.json
