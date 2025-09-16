@@ -1,254 +1,47 @@
-{
-  "widgets": [
-    {
-      "type": "text",
-      "x": 0, "y": 0, "width": 24, "height": 2,
-      "properties": { "markdown": "# Amazon MQ (Strata-idev)" }
-    },
+Totals (single values, stat: Maximum):
 
-    /* ---- Totals (single values) ---- */
-    {
-      "type": "metric",
-      "x": 0, "y": 2, "width": 6, "height": 6,
-      "properties": {
-        "title": "Total producers",
-        "view": "singleValue",
-        "region": "${Region}",
-        "metrics": [
-          [ "AWS/AmazonMQ", "TotalProducerCount", "Broker", "${Broker}", { "stat": "Maximum" } ]
-        ]
-      }
-    },
-    {
-      "type": "metric",
-      "x": 6, "y": 2, "width": 6, "height": 6,
-      "properties": {
-        "title": "Total consumers",
-        "view": "singleValue",
-        "region": "${Region}",
-        "metrics": [
-          [ "AWS/AmazonMQ", "TotalConsumerCount", "Broker", "${Broker}", { "stat": "Maximum" } ]
-        ]
-      }
-    },
-    {
-      "type": "metric",
-      "x": 12, "y": 2, "width": 6, "height": 6,
-      "properties": {
-        "title": "Clean shutdown (journal files)",
-        "view": "singleValue",
-        "region": "${Region}",
-        "metrics": [
-          [ "AWS/AmazonMQ", "JournalFilesForFastRecovery", "Broker", "${Broker}", { "stat": "Maximum" } ]
-        ]
-      }
-    },
-    {
-      "type": "metric",
-      "x": 18, "y": 2, "width": 6, "height": 6,
-      "properties": {
-        "title": "Unclean shutdown (journal files)",
-        "view": "singleValue",
-        "region": "${Region}",
-        "metrics": [
-          [ "AWS/AmazonMQ", "JournalFilesForFullRecovery", "Broker", "${Broker}", { "stat": "Maximum" } ]
-        ]
-      }
-    },
+TotalProducerCount (Broker)
 
-    /* ---- Broker resource ---- */
-    {
-      "type": "metric",
-      "x": 0, "y": 8, "width": 12, "height": 6,
-      "properties": {
-        "title": "CPU utilization per broker (%)",
-        "view": "timeSeries",
-        "region": "${Region}",
-        "stat": "Average",
-        "metrics": [
-          [ "AWS/AmazonMQ", "CpuUtilization", "Broker", "${Broker}" ]
-        ]
-      }
-    },
-    {
-      "type": "metric",
-      "x": 12, "y": 8, "width": 12, "height": 6,
-      "properties": {
-        "title": "Heap usage per broker (%)",
-        "view": "timeSeries",
-        "region": "${Region}",
-        "stat": "Average",
-        "metrics": [
-          [ "AWS/AmazonMQ", "HeapUsage", "Broker", "${Broker}" ]
-        ]
-      }
-    },
-    {
-      "type": "metric",
-      "x": 0, "y": 14, "width": 12, "height": 6,
-      "properties": {
-        "title": "Storage limit usage per broker (%)",
-        "view": "timeSeries",
-        "region": "${Region}",
-        "stat": "Average",
-        "metrics": [
-          [ "AWS/AmazonMQ", "StorePercentUsage", "Broker", "${Broker}" ]
-        ]
-      }
-    },
-    {
-      "type": "metric",
-      "x": 12, "y": 14, "width": 12, "height": 6,
-      "properties": {
-        "title": "Network In/Out (bytes)",
-        "view": "timeSeries",
-        "region": "${Region}",
-        "metrics": [
-          [ "AWS/AmazonMQ", "NetworkIn", "Broker", "${Broker}", { "id": "m1", "visible": true } ],
-          [ ".", "NetworkOut", ".", "${Broker}", { "id": "m2", "visible": true } ]
-        ]
-      }
-    },
+TotalConsumerCount (Broker)
 
-    /* ---- Destination (queue/topic) ---- */
-    {
-      "type": "metric",
-      "x": 0, "y": 20, "width": 12, "height": 6,
-      "properties": {
-        "title": "Queue size (messages) by queue",
-        "view": "timeSeries",
-        "region": "${Region}",
-        "metrics": [
-          [ "AWS/AmazonMQ", "QueueSize", "Broker", "${Broker}", "Queue", "${Queue}" ]
-        ]
-      }
-    },
-    {
-      "type": "metric",
-      "x": 12, "y": 20, "width": 12, "height": 6,
-      "properties": {
-        "title": "Producers per destination",
-        "view": "timeSeries",
-        "region": "${Region}",
-        "metrics": [
-          [ "AWS/AmazonMQ", "ProducerCount", "Broker", "${Broker}", "Topic", "${Topic}" ],
-          [ ".", "ProducerCount", ".", "${Broker}", "Queue", "${Queue}" ]
-        ]
-      }
-    },
-    {
-      "type": "metric",
-      "x": 0, "y": 26, "width": 12, "height": 6,
-      "properties": {
-        "title": "Subscribed consumers per destination",
-        "view": "timeSeries",
-        "region": "${Region}",
-        "metrics": [
-          [ "AWS/AmazonMQ", "ConsumerCount", "Broker", "${Broker}", "Topic", "${Topic}" ],
-          [ ".", "ConsumerCount", ".", "${Broker}", "Queue", "${Queue}" ]
-        ]
-      }
-    },
-    {
-      "type": "metric",
-      "x": 12, "y": 26, "width": 12, "height": 6,
-      "properties": {
-        "title": "Total messages sent per destination (enqueue)",
-        "view": "timeSeries",
-        "region": "${Region}",
-        "metrics": [
-          [ "AWS/AmazonMQ", "EnqueueCount", "Broker", "${Broker}", "Topic", "${Topic}", { "stat": "Sum" } ],
-          [ ".", "EnqueueCount", ".", "${Broker}", "Queue", "${Queue}", { "stat": "Sum" } ]
-        ]
-      }
-    },
-    {
-      "type": "metric",
-      "x": 0, "y": 32, "width": 12, "height": 6,
-      "properties": {
-        "title": "Total messages received per destination (dequeue)",
-        "view": "timeSeries",
-        "region": "${Region}",
-        "metrics": [
-          [ "AWS/AmazonMQ", "DequeueCount", "Broker", "${Broker}", "Topic", "${Topic}", { "stat": "Sum" } ],
-          [ ".", "DequeueCount", ".", "${Broker}", "Queue", "${Queue}", { "stat": "Sum" } ]
-        ]
-      }
-    },
-    {
-      "type": "metric",
-      "x": 12, "y": 32, "width": 12, "height": 6,
-      "properties": {
-        "title": "Expired count per destination",
-        "view": "timeSeries",
-        "region": "${Region}",
-        "metrics": [
-          [ "AWS/AmazonMQ", "ExpiredCount", "Broker", "${Broker}", "Topic", "${Topic}", { "stat": "Sum" } ],
-          [ ".", "ExpiredCount", ".", "${Broker}", "Queue", "${Queue}", { "stat": "Sum" } ]
-        ]
-      }
-    },
-    {
-      "type": "metric",
-      "x": 0, "y": 38, "width": 12, "height": 6,
-      "properties": {
-        "title": "Broker message latency (EnqueueTime, ms)",
-        "view": "timeSeries",
-        "region": "${Region}",
-        "metrics": [
-          [ "AWS/AmazonMQ", "EnqueueTime", "Broker", "${Broker}", "Topic", "${Topic}", { "stat": "Average" } ],
-          [ ".", "EnqueueTime", ".", "${Broker}", "Queue", "${Queue}", { "stat": "Average" } ]
-        ]
-      }
-    },
-    {
-      "type": "metric",
-      "x": 12, "y": 38, "width": 12, "height": 6,
-      "properties": {
-        "title": "Messages dispatched to consumers",
-        "view": "timeSeries",
-        "region": "${Region}",
-        "metrics": [
-          [ "AWS/AmazonMQ", "DispatchCount", "Broker", "${Broker}", "Topic", "${Topic}", { "stat": "Sum" } ],
-          [ ".", "DispatchCount", ".", "${Broker}", "Queue", "${Queue}", { "stat": "Sum" } ]
-        ]
-      }
-    },
+JournalFilesForFastRecovery (Broker)
 
-    /* ---- RabbitMQ-only rates (if engine = RabbitMQ) ---- */
-    {
-      "type": "metric",
-      "x": 0, "y": 44, "width": 12, "height": 6,
-      "properties": {
-        "title": "Ack rate (msgs/sec)",
-        "view": "timeSeries",
-        "region": "${Region}",
-        "metrics": [
-          [ "AWS/AmazonMQ", "AckRate", "Broker", "${Broker}" ]
-        ]
-      }
-    },
-    {
-      "type": "metric",
-      "x": 12, "y": 44, "width": 12, "height": 6,
-      "properties": {
-        "title": "Publish rate (msgs/sec)",
-        "view": "timeSeries",
-        "region": "${Region}",
-        "metrics": [
-          [ "AWS/AmazonMQ", "PublishRate", "Broker", "${Broker}" ]
-        ]
-      }
-    }
-  ],
+JournalFilesForFullRecovery (Broker)
 
-  "start": "-PT3H",
-  "periodOverride": "auto",
+Broker resource (time series, mostly stat: Average):
 
-  "variables": [
-    { "type": "property", "name": "Region", "label": "Region", "defaultValue": "us-east-1", "property": "region" },
-    { "type": "property", "name": "Broker", "label": "Broker", "defaultValue": "*", "property": "Broker" },
-    { "type": "property", "name": "Queue", "label": "Queue", "defaultValue": "*", "property": "Queue" },
-    { "type": "property", "name": "Topic", "label": "Topic", "defaultValue": "*", "property": "Topic" }
-  ]
-}
+CpuUtilization (Broker)
+
+HeapUsage (Broker)
+
+StorePercentUsage (Broker)
+
+NetworkIn (Broker)
+
+NetworkOut (Broker)
+
+Destination-level (queues/topics):
+
+QueueSize (Broker, Queue)
+
+ProducerCount (Broker, Topic) and (Broker, Queue)
+
+ConsumerCount (Broker, Topic) and (Broker, Queue)
+
+EnqueueCount (Sum) (Broker, Topic) and (Broker, Queue)
+
+DequeueCount (Sum) (Broker, Topic) and (Broker, Queue)
+
+ExpiredCount (Sum) (Broker, Topic) and (Broker, Queue)
+
+EnqueueTime (Average) (Broker, Topic) and (Broker, Queue)
+
+DispatchCount (Sum) (Broker, Topic) and (Broker, Queue)
+
+RabbitMQ-only rates:
+
+AckRate (Broker)
+
+PublishRate (Broker)
+
+Variables used for scoping: Region, Broker, Queue, Topic.
