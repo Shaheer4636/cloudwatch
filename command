@@ -1,7 +1,13 @@
-az account show -o table
+SERVER="wolff-application-db"
 
-# Find the server across the subscription
-az resource list \
-  --name wolff-application-db \
+# find the resource group
+RG=$(az resource list \
+  --name "$SERVER" \
   --resource-type "Microsoft.Sql/servers" \
-  --query "[].{name:name, rg:resourceGroup, id:id, location:location}" -o table
+  --query "[0].resourceGroup" -o tsv)
+
+# get the full resource ID (scope)
+SCOPE=$(az sql server show -g "$RG" -n "$SERVER" --query id -o tsv)
+
+echo "RG=$RG"
+echo "SCOPE=$SCOPE"
