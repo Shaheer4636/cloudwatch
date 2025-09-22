@@ -1,13 +1,11 @@
-SERVER="wolff-application-db"
+az extension add -n resource-graph -y
 
-# Find the RG
-RG=$(az resource list \
-  --name "$SERVER" \
-  --resource-type "Microsoft.Sql/servers" \
-  --query "[0].resourceGroup" -o tsv)
+# 1) See all subscriptions you can use
+az account list --all -o table
 
-# Full resource ID (scope for RBAC)
-SCOPE=$(az sql server show -g "$RG" -n "$SERVER" --query id -o tsv)
-
-echo "RG=$RG"
-echo "SCOPE=$SCOPE"
+# 2) Search every subscription you can access for the SQL server
+az graph query -q "
+Resources
+| where type =~ 'microsoft.sql/servers'
+| project name, resourceGroup, subscriptionId, id
+" -o table
