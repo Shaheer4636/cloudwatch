@@ -1,11 +1,14 @@
-az extension add -n resource-graph -y
+# Try ARM first
+az resource list \
+  --subscription "$SUB" \
+  --resource-type "Microsoft.Sql/servers" \
+  --query "[?name=='$SERVER'].{rg:resourceGroup,id:id}" -o table
 
-# 1) See all subscriptions you can use
-az account list --all -o table
-
-# 2) Search every subscription you can access for the SQL server
-az graph query -q "
+# If that returns nothing, use Resource Graph too:
+az extension add -n resource-graph -y >/dev/null 2>&1
+az graph query --subscriptions "$SUB" -q "
 Resources
 | where type =~ 'microsoft.sql/servers'
-| project name, resourceGroup, subscriptionId, id
+| where name =~ '$SERVER'
+| project rg=resourceGroup, id
 " -o table
