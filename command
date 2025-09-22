@@ -1,12 +1,12 @@
 SERVER="wolff-application-db"
 
-# find the resource group
+# Find the RG
 RG=$(az resource list \
   --name "$SERVER" \
   --resource-type "Microsoft.Sql/servers" \
   --query "[0].resourceGroup" -o tsv)
 
-# get the full resource ID (scope)
+# Full resource ID (scope for RBAC)
 SCOPE=$(az sql server show -g "$RG" -n "$SERVER" --query id -o tsv)
 
 echo "RG=$RG"
