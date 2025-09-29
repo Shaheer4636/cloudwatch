@@ -1,0 +1,186 @@
+# This file is for alarms specific to RabbitMQ where engine_type == "RabbitMQ"
+##SystemCpuUtilizationwarning ##1
+resource "aws_cloudwatch_metric_alarm" "SystemCpuUtilizationwarning" {
+  count             = var.engine_type == "RabbitMQ" ? 1 : 0
+  alarm_description = "warning!! CPU Utilization is greater than or equal to 70% for ${local.broker_name} broker"
+  alarm_name        = join(" ", [var.env, var.appname, local.account_id, "medium (warning) CPU utilization is greater than 70% for", local.broker_name, "broker"])
+  alarm_actions     = [join("", ["arn:aws:sns:", var.region, ":", local.account_id, ":", var.medium_notification_sns])]
+
+  metric_name         = "SystemCpuUtilization"
+  namespace           = "AWS/AmazonMQ"
+  statistic           = "Average"
+  period              = "300"
+  evaluation_periods  = "5"
+  threshold           = "70"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+
+  dimensions = {
+    Broker = local.broker_name
+  }
+}
+
+##SystemCpuUtilizationAlert ##2
+resource "aws_cloudwatch_metric_alarm" "SystemCpuUtilizationAlert" {
+  count             = var.engine_type == "RabbitMQ" ? 1 : 0
+  alarm_description = "Alerting!! CPU Utilization is greater than or equal to 80% for ${local.broker_name} broker"
+  alarm_name        = join(" ", [var.env, var.appname, local.account_id, "High (Alert) CPU utilization is greater than 80% for", local.broker_name, "broker"])
+  alarm_actions     = [join("", ["arn:aws:sns:", var.region, ":", local.account_id, ":", var.high_notification_sns])]
+
+  metric_name         = "SystemCpuUtilization"
+  namespace           = "AWS/AmazonMQ"
+  statistic           = "Average"
+  period              = "300"
+  evaluation_periods  = "5"
+  threshold           = "80"
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+
+  dimensions = {
+    Broker = local.broker_name
+  }
+}
+
+##SystemCpuUtilizationCRITICAL ##3
+resource "aws_cloudwatch_metric_alarm" "SystemCpuUtilizationCRITICAL" {
+  count             = var.engine_type == "RabbitMQ" ? 1 : 0
+  alarm_description = "CRITICAL!! CPU Utilization is greater than or equal to 90% for ${local.broker_name} broker"
+  alarm_name        = join(" ", [var.env, var.appname, local.account_id, "CRITICAL (SEVERE) CPU utilization is greater than 90% for", local.broker_name, "broker"])
+  alarm_actions     = [join("", ["arn:aws:sns:", var.region, ":", local.account_id, ":", var.critical_notification_sns])]
+
+  metric_name         = "SystemCpuUtilization"
+  namespace           = "AWS/AmazonMQ"
+  statistic           = "Average"
+  period              = "300"
+  evaluation_periods  = "5"
+  threshold           = "90"
+  comparison_operator = "GreaterThanThreshold"
+
+  dimensions = {
+    Broker = local.broker_name
+  }
+}
+
+##RabbitMQMemUsedwarning ##4
+resource "aws_cloudwatch_metric_alarm" "RabbitMQMemUsedwarning" {
+  count             = var.engine_type == "RabbitMQ" ? 1 : 0
+  alarm_description = "warning!! Memory used is greater than 70% of High Water Mark for ${local.broker_name} broker"
+  alarm_name        = join(" ", [var.env, var.appname, local.account_id, "medium (warning) memory used is greater than 70% of High Water Mark for", local.broker_name, "broker"])
+  alarm_actions     = [join("", ["arn:aws:sns:", var.region, ":", local.account_id, ":", var.medium_notification_sns])]
+
+  metric_name         = "RabbitMQMemUsed"
+  namespace           = "AWS/AmazonMQ"
+  statistic           = "Average"
+  period              = "300"
+  evaluation_periods  = "5"
+  threshold           = 0.7 * local.high_water_mark_bytes
+  comparison_operator = "GreaterThanThreshold"
+  tags                = local.tags
+
+  dimensions = {
+    Broker = local.broker_name
+  }
+}
+
+##RabbitMQMemUsedAlert ##5
+resource "aws_cloudwatch_metric_alarm" "RabbitMQMemUsedAlert" {
+  count             = var.engine_type == "RabbitMQ" ? 1 : 0
+  alarm_description = "Alerting!! Memory used is greater than 80% of High Water Mark for ${local.broker_name} broker"
+  alarm_name        = join(" ", [var.env, var.appname, local.account_id, "High (Alert) memory used is greater than 80% of High Water Mark for", local.broker_name, "broker"])
+  alarm_actions     = [join("", ["arn:aws:sns:", var.region, ":", local.account_id, ":", var.high_notification_sns])]
+
+  metric_name         = "RabbitMQMemUsed"
+  namespace           = "AWS/AmazonMQ"
+  statistic           = "Average"
+  period              = "300"
+  evaluation_periods  = "5"
+  threshold           = 0.8 * local.high_water_mark_bytes
+  comparison_operator = "GreaterThanThreshold"
+  tags                = local.tags
+
+  dimensions = {
+    Broker = local.broker_name
+  }
+}
+
+##RabbitMQMemUsedCRITICAL ##6
+resource "aws_cloudwatch_metric_alarm" "RabbitMQMemUsedCRITICAL" {
+  count             = var.engine_type == "RabbitMQ" ? 1 : 0
+  alarm_description = "CRITICAL!! Memory used is greater than 90% of High Water Mark for ${local.broker_name} broker"
+  alarm_name        = join(" ", [var.env, var.appname, local.account_id, "CRITICAL (SEVERE) memory used is greater than 90% of High Water Mark for", local.broker_name, "broker"])
+  alarm_actions     = [join("", ["arn:aws:sns:", var.region, ":", local.account_id, ":", var.critical_notification_sns])]
+
+  metric_name         = "RabbitMQMemUsed"
+  namespace           = "AWS/AmazonMQ"
+  statistic           = "Average"
+  period              = "300"
+  evaluation_periods  = "5"
+  threshold           = local.memory_critical_above
+  comparison_operator = "GreaterThanThreshold"
+  tags                = local.tags
+
+  dimensions = {
+    Broker = local.broker_name
+  }
+}
+
+##RabbitMQDiskFreewarning ##7
+resource "aws_cloudwatch_metric_alarm" "RabbitMQDiskFreewarning" {
+  count             = var.engine_type == "RabbitMQ" ? 1 : 0
+  alarm_description = "warning!! RabbitMQ's free disk space is less than 30% free for ${local.broker_name} broker"
+  alarm_name        = join(" ", [var.env, var.appname, local.account_id, "medium (warning) RabbitMQ's free disk space is less than 30% free for", local.broker_name, "broker"])
+  alarm_actions     = [join("", ["arn:aws:sns:", var.region, ":", local.account_id, ":", var.medium_notification_sns])]
+
+  metric_name         = "RabbitMQDiskFree"
+  namespace           = "AWS/AmazonMQ"
+  statistic           = "Average"
+  period              = "300"
+  evaluation_periods  = "5"
+  threshold           = 0.3 * local.disk_size_bytes
+  comparison_operator = "LessThanThreshold"
+  tags                = local.tags
+
+  dimensions = {
+    Broker = local.broker_name
+  }
+}
+
+##RabbitMQDiskFreeAlert ##8
+resource "aws_cloudwatch_metric_alarm" "RabbitMQDiskFreeAlert" {
+  count             = var.engine_type == "RabbitMQ" ? 1 : 0
+  alarm_description = "Alerting!! RabbitMQ's free disk space is less than 20% free for ${local.broker_name} broker"
+  alarm_name        = join(" ", [var.env, var.appname, local.account_id, "High (Alert) RabbitMQ's free disk space is less than 20% free for", local.broker_name, "broker"])
+  alarm_actions     = [join("", ["arn:aws:sns:", var.region, ":", local.account_id, ":", var.high_notification_sns])]
+
+  metric_name         = "RabbitMQDiskFree"
+  namespace           = "AWS/AmazonMQ"
+  statistic           = "Average"
+  period              = "300"
+  evaluation_periods  = "5"
+  threshold           = 0.2 * local.disk_size_bytes
+  comparison_operator = "LessThanThreshold"
+  tags                = local.tags
+
+  dimensions = {
+    Broker = local.broker_name
+  }
+}
+
+##RabbitMQDiskFreeCRITICAL ##9
+resource "aws_cloudwatch_metric_alarm" "RabbitMQDiskFreeCRITICAL" {
+  count             = var.engine_type == "RabbitMQ" ? 1 : 0
+  alarm_description = "CRITICAL!! RabbitMQ's free disk space is less than 10% free for ${local.broker_name} broker"
+  alarm_name        = join(" ", [var.env, var.appname, local.account_id, "CRITICAL (SEVERE) RabbitMQ's free disk space is less than 10% free for", local.broker_name, "broker"])
+  alarm_actions     = [join("", ["arn:aws:sns:", var.region, ":", local.account_id, ":", var.critical_notification_sns])]
+
+  metric_name         = "RabbitMQDiskFree"
+  namespace           = "AWS/AmazonMQ"
+  statistic           = "Average"
+  period              = "300"
+  evaluation_periods  = "5"
+  threshold           = local.disk_free_critical_below
+  comparison_operator = "LessThanThreshold"
+  tags                = local.tags
+
+  dimensions = {
+    Broker = local.broker_name
+  }
+}
