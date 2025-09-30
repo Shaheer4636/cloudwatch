@@ -1,0 +1,23 @@
+trigger: none
+
+resources:
+  repositories:
+    - repository: templates
+      type: git
+      name: DEVOPS_Platform_as_a_Service/deploy-templates
+      ref: refs/tags/7.5.0   # or the tag/branch you intend to use
+
+jobs:
+- job: list_templates
+  pool:
+    vmImage: ubuntu-latest
+  steps:
+    - checkout: self
+    - checkout: templates
+    - bash: |
+        echo "=== Listing files in templates repo ==="
+        echo "Root: $(Build.SourcesDirectory)"
+        echo "Templates path: $(Build.SourcesDirectory)/templates"
+        ls -la $(Build.SourcesDirectory)/templates
+        echo "=== Recursive listing ==="
+        find $(Build.SourcesDirectory)/templates -maxdepth 3 -type f | sort
