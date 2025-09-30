@@ -1,10 +1,19 @@
+1. Client Uptime Report: Automated Data-Driven Evidence Based Pipeline for SitusAMC Applications
 
-1. Client Uptime Report: Automated Data-Driven Evidence Based Pipeline For regarding the uptime and SLO of SitusAMC Applications for Clients.
+Build unified ingestion pipelines (CloudWatch Synthetics, Lambda, S3) to continuously capture uptime and SLO metrics across acuity, strata, centricity, VmsNext.
 
+Define application-specific SLOs, automate alerting thresholds, and validate with synthetic downtime tests.
 
-2. Migration from DataDog to AWS CloudWatch for cost saving and observability alternate across all teams and environments. 
-Overall status: 
-acuity - 
-strata -
-centricity -
-VmsNext -
+Generate automated evidence reports (QuickSight/HTML/PDF) and deliver securely to clients for SLA compliance.
+
+Provide executive-level dashboards mapping uptime directly to contractual obligations for transparent client reviews.
+
+2. Migration from DataDog to AWS CloudWatch for Cost Saving and Observability Alternate
+
+Inventory and translate all DataDog dashboards, logs, and alerts into CloudWatch equivalents with OpenTelemetry support.
+
+Implement CloudWatch agent/log pipelines, optimize retention policies, and configure alarms to reduce costs while maintaining observability.
+
+Run parallel monitoring for validation, then cut over teams (acuity, strata, centricity, VmsNext) to CloudWatch and decommission DataDog.
+
+Deliver cost-savings analysis and conduct training sessions for engineering and business stakeholders to ensure adoption.
