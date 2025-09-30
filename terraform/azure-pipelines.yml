@@ -1,35 +1,39 @@
-# Do not trigger automatically; run manually for test
+# azure-pipelines.yml
+# Sandbox test deploy for VPC + Aurora PostgreSQL Serverless
+
 trigger: none
 
-# Repos the pipeline will checkout side-by-side
 resources:
   repositories:
     - repository: templates
       type: git
       name: DEVOPS_Platform_as_a_Service/deploy-templates
-      ref: AB#543990-prevent-iam-role-sg-creation
+      ref: refs/tags/7.5.0
+
     - repository: vpc
       type: git
       name: DEVOPS_Platform_as_a_Service/vpc
       ref: refs/tags/4.1.1
+
     - repository: security-groups
       type: git
       name: DEVOPS_Platform_as_a_Service/security-groups
       ref: refs/tags/2.36.1
+
     - repository: sns-subtopic
       type: git
       name: DEVOPS_Platform_as_a_Service/sns-subtopic
       ref: refs/tags/2.0.1
+
     - repository: RDS-Aurora-PostgreSQL-serverless
       type: git
       name: DEVOPS_Platform_as_a_Service/RDS-Aurora-PostgreSQL-serverless
       ref: refs/tags/1.2.0
 
 variables:
-  # Our Terraform root folder
+  # Folder in THIS repo that contains your root Terraform
   pipelineSrcDirectory: 'terraform'
 
-# Expose a boolean so you can run Plan-only first
 parameters:
 - name: terrformPLANonly
   displayName: tfPlanOnly (check == true)
@@ -41,33 +45,31 @@ stages:
     parameters:
       environment: sandbox
       environmentDisplayName: Sandbox
-      # These two must match the exact names you were given
+
+      # Your existing service connections
       tfServiceConnection: DevopsSandbox-889050139813-DevopsIACSvcVpc-us-east-1
       awsServiceConnection: DevopsSandbox-889050139813-DevopsIACSvcVpc
 
       tfVersion: 1.12.2
       application: PlatformEng
-      # The template expects the folder containing Terraform
+
+      # Path to your Terraform root folder within this repo
       pipelineSrcDir: $(pipelineSrcDirectory)
 
-      # Plan first, then set to false to apply
+      # First run with true to PLAN, then set to false to APPLY
       tfPlanOnly: ${{ parameters.terrformPLANonly }}
 
-      # Flags that this stack needs Aurora module to be checked out
+      # Module toggles – enable only what we need for this test
       reqRDSauroraPg: true
-
-      # Region and customer are informational in most templates
-      regionName: us-east-1
-      customer: Thompson-Inc
-
-      # If your template supports these toggles, leave others false
-      reqEKSGRule: false
-      reqEKSMod:  false
-      reqMongoMod: false
-      reqSSRS:     false
+      reqRDSaurora: false
       reqRDSmssqlMod: false
-      reqRDSaurora:   false
+      reqMongoMod: false
+      reqEKSGRule: false
+      reqEKSMod: false
       reqAmazonMQMod: false
+      reqDocDB: false
+      reqSSRS: false
 
-      # Optional, only if your template expects a custom checkout list
-      checkoutTemplate: NatesCheckouts.yml
+      # Misc template fields
+      customer: Thompson-Inc
+      regionName: us-east-1
