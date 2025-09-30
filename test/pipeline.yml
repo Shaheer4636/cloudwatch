@@ -1,0 +1,364 @@
+resources:
+  repositories:
+    - repository: templates
+      type: git
+      name: DEVOPS_Platform_as_a_Service/deploy-templates
+      ref: refs/tags/7.4.0
+    - repository: elasticbeanstalk
+      type: git 
+      name: DEVOPS_Platform_as_a_Service/ElasticBeanStalk
+      ref:  refs/tags/7.19.0
+    - repository: s3
+      type: git 
+      name: DEVOPS_Platform_as_a_Service/s3
+      ref: refs/tags/4.2.0
+    - repository: secret_kms_key_module
+      type: git 
+      name: DEVOPS_Platform_as_a_Service/secret_kms_key_module
+      ref: refs/tags/1.1.0
+    - repository: ssrs-rdsmssql
+      type: git
+      name: DEVOPS_Platform_as_a_Service/ssrs-rdsmssql
+      ref: refs/tags/12.5.1
+    - repository: transfer-family-service-managed
+      type: git
+      name: DEVOPS_Platform_as_a_Service/transfer-family-service-managed
+      ref: refs/tags/5.0.0
+    - repository: security-groups
+      type: git
+      name: DEVOPS_Platform_as_a_Service/security-groups
+      ref:  refs/tags/2.36.1
+    - repository: nlb
+      type: git
+      name: DEVOPS_Platform_as_a_Service/nlb
+      ref: refs/tags/1.7.0
+    - repository: vpc
+      type: git
+      name: DEVOPS_Platform_as_a_Service/vpc
+      ref: refs/tags/4.2.0
+    - repository: amazonmq
+      type: git
+      name: DEVOPS_Platform_as_a_Service/amazonmq
+      ref:  refs/tags/4.2.0
+    - repository: iam-controls
+      type: git
+      name: DEVOPS_Platform_as_a_Service/iam-controls
+      ref: refs/tags/2.32.0
+    - repository: alarm-aggregator
+      type: git
+      name: DEVOPS_Platform_as_a_Service/alarm-aggregator
+      ref: refs/tags/2.1.0
+    - repository: certificate-management
+      type: git
+      name: DEVOPS_Platform_as_a_Service/certificate-management
+      ref: refs/tags/2.1.0
+    - repository: sns-subtopic
+      type: git
+      name: DEVOPS_Platform_as_a_Service/sns-subtopic
+      ref: refs/tags/2.0.1
+    - repository: PySRE
+      type: git
+      name: SAMC Shared Components/PySRE
+      ref: refs/tags/2.11.0
+    - repository: SaaSNow_app_monitor
+      type: git
+      name: SAMC Shared Components/SaaSNow_app_monitor
+      ref: refs/tags/1.2.0
+    - repository: transfer-family-lambda-IdP
+      type: git
+      name: DEVOPS_Platform_as_a_Service/transfer-family-lambda-IdP
+      ref: feature/JSchopp_MinimalChg_LoggingSubDirs
+    - repository: synthetic-canary-alarm
+      type: git
+      name: synthetic-canary-alarm
+      ref: refs/tags/2.1.0  
+
+trigger: none
+
+parameters:
+- name: sandbox
+  displayName: Deploy sandbox to DevopsSandbox 889050139813
+  type: boolean
+  default: false
+
+- name: sbjpmc
+  displayName: Deploy sbjpmc to DevopsSandbox 889050139813
+  type: boolean
+  default: false
+
+- name: DEViDEV
+  displayName: Deploy dev/idev to ProMeritemBTrustSaaSDev 306699265289
+  type: boolean
+  default: false
+- name: nonprod
+  displayName: Deploy nonprod to ProMerit-emBTrust-SaaS-NonProd 675314466308
+  type: boolean
+  default: false
+- name: perf 
+  displayName: Deploy perf to ProMeritemBTrustSaaSPerf 885458231784
+  type: boolean
+  default: false
+- name: embsiteast
+  displayName: Deploy SIT East to ProMeritemBTrustSaaSSITEastern 103172700134
+  type: boolean
+  default: false
+- name: embsitbppr
+  displayName: Deploy SIT BPPR to ProMeritemBTrustSaaSSITEastern 103172700134
+  type: boolean
+  default: false
+- name: sit2jpmc
+  displayName: Deploy JPMC SIT2 to ProMeritemBTrustSaaSSITJPMC 730335208400
+  type: boolean
+  default: false
+- name: embprodeast
+  displayName: Deploy PROD East to ProMeritemBTrustSaaSProdEastern 245618502222
+  type: boolean
+  default: false
+- name: embprodciti
+  displayName: Deploy PROD citi to embTrustProdCiti 634541844015 
+  type: boolean
+  default: false
+- name: embprod2jpmc
+  displayName: Deploy PROD JPMC to ProMeritemBTrustSaaSProdJPMC 183295444882
+  type: boolean
+  default: false
+- name: embsitusb
+  displayName: Deploy USB SIT to ProMeritemBTrustSaaSSITUSB 418295675862
+  type: boolean
+  default: false
+- name: terrformPLANonly
+  displayName: tfPlanOnly (check == true)
+  type: boolean
+  default: true
+
+
+stages:
+- ${{ if eq(parameters.sandbox, true) }}:
+  - template: deploy/tf-create-infra-template.yml@templates
+    parameters:
+      environment: sandbox
+      environmentDisplayName: Sandbox
+      tfServiceConnection: DevopsSandbox-889050139813-DevopsIACSvcVpc-us-east-1
+      awsServiceConnection: DevopsSandbox-889050139813-DevopsIACSvcVpc
+      tfVersion: 1.12.2
+      application: PMEMB
+      pipelineSrcDir: $(Build.Repository.Name)
+      tfPlanOnly: ${{ parameters.terrformPLANonly }}
+      regionName: us-east-1
+      checkoutTemplate: EmBTrust-SaaS.yml
+      folderToZip: PySRE
+      reqElasticbeanStalkMod: true
+      reqS3Mod: true  
+
+- ${{ if eq(parameters.sbjpmc, true) }}:
+  - template: deploy/tf-create-infra-template.yml@templates
+    parameters:
+      environment: sbjpmc
+      environmentDisplayName: sbjpmc
+      tfServiceConnection: DevopsSandbox-889050139813-DevopsIACSvcVpc-us-east-1
+      awsServiceConnection: DevopsSandbox-889050139813-DevopsIACSvcVpc
+      tfVersion: 1.12.2
+      application: emBTrust
+      pipelineSrcDir: $(Build.Repository.Name)
+      tfPlanOnly: ${{ parameters.terrformPLANonly }}
+      regionName: us-east-1
+      checkoutTemplate: EmBTrust-SaaS.yml
+      reqS3Mod: true   
+      
+
+- ${{ if eq(parameters.DEViDEV, true) }}:
+  - template: deploy/tf-create-infra-template.yml@templates
+    parameters:
+      environment: embdevidev
+      environmentDisplayName: embDeviDev
+      tfServiceConnection: ProMeritemBTrustSaaSDev-306699265289-DEVOPSIACSVCVPC-us-east-1
+      awsServiceConnection: ProMeritemBTrustSaaSDev-306699265289-DEVOPSIACSVCVPC
+      tfVersion: 1.12.2
+      application: PMEMB
+      pipelineSrcDir: $(Build.Repository.Name)
+      tfPlanOnly: ${{ parameters.terrformPLANonly }}
+      regionName: us-east-1
+      checkoutTemplate: EmBTrust-SaaS.yml
+      folderToZip: PySRE
+      reqElasticbeanStalkMod: true
+      reqS3Mod: true
+      allow_ASG_BeanStalk_access: true
+    
+
+- ${{ if eq(parameters.nonprod, true) }}:
+  - template: deploy/tf-create-infra-template.yml@templates
+    parameters:
+      environment: embnonprod
+      environmentDisplayName: embnonprod
+      tfServiceConnection: ProMeritemBTrustSaaSNonProd-675314466308-DEVOPSIACSVCVPC-us-east-1
+      awsServiceConnection: ProMeritemBTrustSaaSNonProd-675314466308-DEVOPSIACSVCVPC
+      tfVersion: 1.12.2
+      application: PMEMB
+      pipelineSrcDir: $(Build.Repository.Name)
+      tfPlanOnly: ${{ parameters.terrformPLANonly }}
+      regionName: us-east-1
+      checkoutTemplate: EmBTrust-SaaS.yml
+      reqElasticbeanStalkMod: true
+      folderToZip: PySRE
+      reqS3Mod: true
+      allow_ASG_BeanStalk_access: true
+
+
+- ${{ if eq(parameters.perf, true) }}:
+  - template: deploy/tf-create-infra-template.yml@templates
+    parameters:
+      environment: embperf
+      environmentDisplayName: embperf
+      tfServiceConnection: ProMeritemBTrustSaaSPerf-885458231784-DEVOPSIACSVCVPC-us-east-1
+      awsServiceConnection: ProMeritemBTrustSaaSPerf-885458231784-DEVOPSIACSVCVPC
+      tfVersion: 1.12.2
+      application: PMEMB
+      pipelineSrcDir: $(Build.Repository.Name)
+      tfPlanOnly: ${{ parameters.terrformPLANonly }}
+      regionName: us-east-1
+      checkoutTemplate: EmBTrust-SaaS.yml
+      folderToZip: PySRE
+      reqElasticbeanStalkMod: true
+      reqS3Mod: true
+      allow_ASG_BeanStalk_access: true
+      
+- ${{ if eq(parameters.embsiteast, true) }}:
+  - template: deploy/tf-create-infra-template.yml@templates
+    parameters:
+      environment: embsiteast
+      environmentDisplayName: embsiteast
+      tfServiceConnection: ProMeritemBTrustSaaSSITEastern-103172700134-DEVOPSIACSVCVPC-us-east-1
+      awsServiceConnection: ProMeritemBTrustSaaSSITEastern-103172700134-DEVOPSIACSVCVPC
+      tfVersion: 1.12.2
+      application: PMEMB
+      pipelineSrcDir: $(Build.Repository.Name)
+      tfPlanOnly: ${{ parameters.terrformPLANonly }}
+      regionName: us-east-1
+      checkoutTemplate: EmBTrust-SaaS.yml
+      folderToZip: PySRE
+      reqElasticbeanStalkMod: true
+      reqS3Mod: true
+      allow_ASG_BeanStalk_access: true
+
+- ${{ if eq(parameters.embsitbppr, true) }}:
+  - template: deploy/tf-create-infra-template.yml@templates
+    parameters:
+      environment: embsitbppr
+      environmentDisplayName: embsitbppr
+      tfServiceConnection: ProMeritemBTrustSaaSSITEastern-103172700134-DEVOPSIACSVCVPC-us-east-1
+      awsServiceConnection: ProMeritemBTrustSaaSSITEastern-103172700134-DEVOPSIACSVCVPC
+      tfVersion: 1.12.2
+      application: PMEMB
+      pipelineSrcDir: $(Build.Repository.Name)
+      tfPlanOnly: ${{ parameters.terrformPLANonly }}
+      regionName: us-east-1
+      checkoutTemplate: EmBTrust-SaaS.yml
+      folderToZip: PySRE
+      reqElasticbeanStalkMod: true
+      reqS3Mod: true
+      allow_ASG_BeanStalk_access: true
+      reqAmazonMQMod: true
+  
+- ${{ if eq(parameters.sit2jpmc, true) }}:
+  - template: deploy/tf-create-infra-template.yml@templates
+    parameters:
+      environment: embsit2jpmc
+      environmentDisplayName: embsit2jpmc
+      tfServiceConnection: ProMeritemBTrustSaaSSITJPMC-730335208400-DEVOPSIACSVCVPC-us-east-1
+      awsServiceConnection: ProMeritemBTrustSaaSSITJPMC-730335208400-DEVOPSIACSVCVPC
+      tfVersion: 1.12.2
+      application: PMEMB
+      pipelineSrcDir: $(Build.Repository.Name)
+      tfPlanOnly: ${{ parameters.terrformPLANonly }}
+      regionName: us-east-1
+      checkoutTemplate: EmBTrust-SaaS.yml
+      reqElasticbeanStalkMod: true
+      folderToZip: PySRE
+      reqS3Mod: true
+      reqSSRS: true
+      allow_ASG_BeanStalk_access: true 
+      reqAmazonMQMod: true
+      reqEc2Mod: true
+
+
+- ${{ if eq(parameters.embprodeast, true) }}:
+  - template: deploy/tf-create-infra-template.yml@templates
+    parameters:
+      environment: embprodeast
+      environmentDisplayName: embprodeast
+      tfServiceConnection: ProMeritemBTrustSaaSProdEastern-245618502222-DEVOPSIACSVCVPC-us-east-1
+      awsServiceConnection: ProMeritemBTrustSaaSProdEastern-245618502222-DEVOPSIACSVCVPC
+      tfVersion: 1.12.2
+      application: PMEMB
+      pipelineSrcDir: $(Build.Repository.Name)
+      tfPlanOnly: ${{ parameters.terrformPLANonly }}
+      regionName: us-east-1
+      checkoutTemplate: EmBTrust-SaaS.yml
+      folderToZip: PySRE
+      reqElasticbeanStalkMod: true
+      reqS3Mod: true
+      reqSSRS: true
+      allow_ASG_BeanStalk_access: true
+
+- ${{ if eq(parameters.embprodciti, true) }}:
+  - template: deploy/tf-create-infra-template.yml@templates
+    parameters:
+      environment: embprodciti
+      environmentDisplayName: embprodciti
+      tfServiceConnection: emBTrustProdCiti-634541844015-DEVOPSIACSVCVPC-us-east-1
+      awsServiceConnection: emBTrustProdCiti-634541844015-DEVOPSIACSVCVPC
+      tfVersion: 1.12.2
+      application: PMEMB
+      pipelineSrcDir: $(Build.Repository.Name)
+      tfPlanOnly: ${{ parameters.terrformPLANonly }}
+      regionName: us-east-1
+      checkoutTemplate: EmBTrust-SaaS.yml
+      folderToZip: PySRE
+      reqElasticbeanStalkMod: true
+      reqS3Mod: true
+      reqSSRS: true
+      allow_ASG_BeanStalk_access: true
+      reqEc2Mod: true
+
+
+- ${{ if eq(parameters.embprod2jpmc, true) }}:
+  - template: deploy/tf-create-infra-template.yml@templates
+    parameters:
+      environment: embprod2jpmc
+      environmentDisplayName: embprod2jpmc
+      tfServiceConnection: ProMeritemBTrustSaaSProdJPMC-183295444882-DEVOPSIACSVCVPC-us-east-1
+      awsServiceConnection: ProMeritemBTrustSaaSProdJPMC-183295444882-DEVOPSIACSVCVPC
+      tfVersion: 1.12.2
+      application: PMEMB
+      pipelineSrcDir: $(Build.Repository.Name)
+      tfPlanOnly: ${{ parameters.terrformPLANonly }}
+      regionName: us-east-1
+      checkoutTemplate: EmBTrust-SaaS.yml
+      reqElasticbeanStalkMod: true
+      folderToZip: PySRE
+      reqS3Mod: true
+      reqSSRS: true
+      allow_ASG_BeanStalk_access: true
+      reqAmazonMQMod: true
+      reqEc2Mod: true
+
+- ${{ if eq(parameters.embsitusb, true) }}:
+  - template: deploy/tf-create-infra-template.yml@templates
+    parameters:
+      environment: embsitusb
+      environmentDisplayName: embsitusb
+      tfServiceConnection: ProMeritemBTrustSaaSSITUSB-418295675862-DEVOPSIACSVCVPC-us-east-1
+      awsServiceConnection: ProMeritemBTrustSaaSSITUSB-418295675862-DEVOPSIACSVCVPC
+      tfVersion: 1.12.2
+      application: PMEMB
+      pipelineSrcDir: $(Build.Repository.Name)
+      tfPlanOnly: ${{ parameters.terrformPLANonly }}
+      regionName: us-east-1
+      checkoutTemplate: EmBTrust-SaaS.yml
+      reqElasticbeanStalkMod: true
+      folderToZip: PySRE
+      reqS3Mod: true
+      reqSSRS: true
+      allow_ASG_BeanStalk_access: true
+      reqAmazonMQMod: true
+      reqEc2Mod: true
