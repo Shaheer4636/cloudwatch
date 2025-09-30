@@ -1,19 +1,347 @@
-1. Client Uptime Report: Automated Data-Driven Evidence Based Pipeline for SitusAMC Applications
+resource "aws_cloudwatch_dashboard" "aurora_dash" {
+  # count          = var.rds_aurora_engine == "aurora-postgresql" ? 1 : 0
+  dashboard_name = "${local.identifier_eng_app_env}-dashboard"
 
-Build unified ingestion pipelines (CloudWatch Synthetics, Lambda, S3) to continuously capture uptime and SLO metrics across acuity, strata, centricity, VmsNext.
-
-Define application-specific SLOs, automate alerting thresholds, and validate with synthetic downtime tests.
-
-Generate automated evidence reports (QuickSight/HTML/PDF) and deliver securely to clients for SLA compliance.
-
-Provide executive-level dashboards mapping uptime directly to contractual obligations for transparent client reviews.
-
-2. Migration from DataDog to AWS CloudWatch for Cost Saving and Observability Alternate
-
-Inventory and translate all DataDog dashboards, logs, and alerts into CloudWatch equivalents with OpenTelemetry support.
-
-Implement CloudWatch agent/log pipelines, optimize retention policies, and configure alarms to reduce costs while maintaining observability.
-
-Run parallel monitoring for validation, then cut over teams (acuity, strata, centricity, VmsNext) to CloudWatch and decommission DataDog.
-
-Deliver cost-savings analysis and conduct training sessions for engineering and business stakeholders to ensure adoption.
+  dashboard_body = <<EOF
+            {
+                "widgets": [
+                    {
+                        "type": "metric",
+                        "x": 12,
+                        "y": 6,
+                        "width": 6,
+                        "height": 6,
+                        "properties": {
+                            "view": "timeSeries",
+                            "stacked": false,
+                            "region": "${var.region}",
+                            "metrics": [
+                                [ "AWS/RDS", "ReadThroughput", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-one" ],
+                                [ "AWS/RDS", "ReadThroughput", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-two" ]
+                            ],
+                            "title": "ReadThroughput (Bytes/Second)"
+                        }
+                    },
+                    {
+                        "type": "metric",
+                        "x": 18,
+                        "y": 0,
+                        "width": 6,
+                        "height": 6,
+                        "properties": {
+                            "view": "timeSeries",
+                            "stacked": false,
+                            "region": "${var.region}",
+                            "stat": "Average",
+                            "period": 300,
+                            "metrics": [
+                                [ "AWS/RDS", "WriteLatency", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-one" ],
+                                [ "AWS/RDS", "WriteLatency", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-two" ]
+                            ],
+                            "title": "WriteLatency (Second)"
+                        }
+                    },
+                    {
+                        "type": "metric",
+                        "x": 12,
+                        "y": 12,
+                        "width": 6,
+                        "height": 6,
+                        "properties": {
+                            "metrics": [
+                                [ "AWS/RDS", "DiskQueueDepth", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-one" ],
+                                [ "AWS/RDS", "DiskQueueDepth", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-two" ]
+                            ],
+                            "view": "timeSeries",
+                            "stacked": false,
+                            "region": "${var.region}",
+                            "stat": "Average",
+                            "period": 300,
+                            "title": "DiskQueueDepth (Count)"
+                        }
+                    },
+                    {
+                        "type": "metric",
+                        "x": 6,
+                        "y": 6,
+                        "width": 6,
+                        "height": 6,
+                        "properties": {
+                            "metrics": [
+                                [ "AWS/RDS", "ReadIOPS", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-one" ],
+                                [ "AWS/RDS", "ReadIOPS", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-two" ]
+                            ],
+                            "view": "timeSeries",
+                            "stacked": false,
+                            "region": "${var.region}",
+                            "stat": "Average",
+                            "period": 300,
+                            "title": "ReadIOPS (Bytes/Second)"
+                        }
+                    },
+                    {
+                        "type": "metric",
+                        "x": 0,
+                        "y": 6,
+                        "width": 6,
+                        "height": 6,
+                        "properties": {
+                            "view": "timeSeries",
+                            "stacked": false,
+                            "region": "${var.region}",
+                            "stat": "Average",
+                            "period": 300,
+                            "metrics": [
+                                [ "AWS/RDS", "WriteIOPS", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-one" ],
+                                [ "AWS/RDS", "WriteIOPS", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-two" ]
+                            ],
+                            "title": "WriteIOPS (Bytes/Second)"
+                        }
+                    },
+                    {
+                        "type": "metric",
+                        "x": 6,
+                        "y": 18,
+                        "width": 6,
+                        "height": 6,
+                        "properties": {
+                            "view": "timeSeries",
+                            "stacked": false,
+                            "region": "${var.region}",
+                            "stat": "Average",
+                            "period": 300,
+                            "metrics": [
+                                [ "AWS/RDS", "NetworkTransmitThroughput", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-one" ],
+                                [ "AWS/RDS", "NetworkTransmitThroughput", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-two" ]
+                            ],
+                            "title": "NetworkTransmitThroughput (Bytes/Second)"
+                        }
+                    },
+                    {
+                        "type": "metric",
+                        "x": 0,
+                        "y": 18,
+                        "width": 6,
+                        "height": 6,
+                        "properties": {
+                            "view": "timeSeries",
+                            "stacked": false,
+                            "region": "${var.region}",
+                            "stat": "Average",
+                            "period": 300,
+                            "metrics": [
+                                [ "AWS/RDS", "NetworkReceiveThroughput", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-one" ],
+                                [ "AWS/RDS", "NetworkReceiveThroughput", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-two" ]
+                            ],
+                            "title": "NetworkReceiveThroughput (Bytes/Second)"
+                        }
+                    },
+                    {
+                        "type": "metric",
+                        "x": 18,
+                        "y": 18,
+                        "width": 6,
+                        "height": 6,
+                        "properties": {
+                            "view": "timeSeries",
+                            "stacked": false,
+                            "region": "${var.region}",
+                            "stat": "Average",
+                            "period": 300,
+                            "metrics": [
+                                [ "AWS/RDS", "DatabaseConnections", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-one" ],
+                                [ "AWS/RDS", "DatabaseConnections", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-two" ]
+                            ],
+                            "title": "DatabaseConnections (Count)"
+                        }
+                    },
+                    {
+                        "type": "metric",
+                        "x": 12,
+                        "y": 0,
+                        "width": 6,
+                        "height": 6,
+                        "properties": {
+                            "view": "timeSeries",
+                            "stacked": false,
+                            "region": "${var.region}",
+                            "stat": "Average",
+                            "period": 300,
+                            "metrics": [
+                                [ "AWS/RDS", "ReadLatency", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-one" ],
+                                [ "AWS/RDS", "ReadLatency", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-two" ]
+                            ],
+                            "title": "ReadLatency (Seconds)"
+                        }
+                    },
+                    {
+                        "type": "metric",
+                        "x": 18,
+                        "y": 6,
+                        "width": 6,
+                        "height": 6,
+                        "properties": {
+                            "metrics": [
+                                [ "AWS/RDS", "WriteThroughput", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-one" ],
+                                [ "AWS/RDS", "WriteThroughput", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-two" ]
+                            ],
+                            "view": "timeSeries",
+                            "stacked": false,
+                            "region": "${var.region}",
+                            "stat": "Average",
+                            "period": 300,
+                            "title": "WriteThroughput (Bytes/Second)"
+                        }
+                    },
+                    {
+                        "type": "metric",
+                        "x": 6,
+                        "y": 12,
+                        "width": 6,
+                        "height": 6,
+                        "properties": {
+                            "metrics": [
+                                [ "AWS/RDS", "FreeLocalStorage", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-one" ],
+                                [ "AWS/RDS", "FreeLocalStorage", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-two" ]
+                            ],
+                            "view": "timeSeries",
+                            "stacked": false,
+                            "region": "${var.region}",
+                            "stat": "Average",
+                            "period": 300,
+                            "title": "FreeLocalStorage (Bytes)"
+                        }
+                    },
+                    {
+                        "type": "metric",
+                        "x": 0,
+                        "y": 12,
+                        "width": 6,
+                        "height": 6,
+                        "properties": {
+                            "metrics": [
+                                [ "AWS/RDS", "FreeableMemory", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-one" ],
+                                [ "AWS/RDS", "FreeableMemory", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-two" ]
+                            ],
+                            "view": "timeSeries",
+                            "stacked": false,
+                            "region": "${var.region}",
+                            "stat": "Average",
+                            "period": 300,
+                            "title": "FreeableMemory (Bytes)"
+                        }
+                    },
+                    {
+                        "type": "metric",
+                        "x": 12,
+                        "y": 18,
+                        "width": 6,
+                        "height": 6,
+                        "properties": {
+                            "metrics": [
+                                [ "AWS/RDS", "SwapUsage", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-one" ],
+                                [ "AWS/RDS", "SwapUsage", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-two" ]
+                            ],
+                            "view": "timeSeries",
+                            "stacked": false,
+                            "region": "${var.region}",
+                            "stat": "Average",
+                            "period": 300,
+                            "title": "SwapUsage (Bytes)"
+                        }
+                    },
+                    {
+                        "type": "metric",
+                        "x": 6,
+                        "y": 0,
+                        "width": 6,
+                        "height": 6,
+                        "properties": {
+                            "metrics": [
+                                [ { "expression": "100*(m2/m1)", "label": "SwapUsage as % of FreeableMemory - one", "id": "e1", "region": "${var.region}" } ],
+                                [ "AWS/RDS", "FreeableMemory", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-one", { "region": "${var.region}", "id": "m1", "visible": false } ],
+                                [ ".", "SwapUsage", ".", ".", { "region": "${var.region}", "id": "m2", "visible": false } ],
+                                [ { "expression": "100*(m4/m3)", "label": "SwapUsage as % of FreeableMemory - two", "id": "e2", "region": "${var.region}" } ],
+                                [ "AWS/RDS", "FreeableMemory", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-two", { "region": "${var.region}", "id": "m3", "visible": false } ],
+                                [ ".", "SwapUsage", ".", ".", { "region": "${var.region}", "id": "m4", "visible": false } ]
+                            ],
+                            "view": "timeSeries",
+                            "stacked": false,
+                            "region": "${var.region}",
+                            "stat": "Average",
+                            "period": 300,
+                            "title": "SwapUsage as Percentage of FreeableMemory",
+                             "annotations": {
+                                "horizontal": [
+                                       {
+                                "label": "CRITICAL above",
+                                "value": ${var.CRITICAL_threshold_swapusage_pct_freemem}
+                                      }
+                                   ]
+                               },
+                               "yAxis": {
+                                   "left": {
+                                       "showUnits": false,
+                                       "label": "Percent"
+                                   }
+                               }
+                        }
+                    },
+                    {
+                        "type": "metric",
+                        "x": 0,
+                        "y": 0,
+                        "width": 6,
+                        "height": 6,
+                        "properties": {
+                            "metrics": [
+                                [ "AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-one" ],
+                                [ "AWS/RDS", "CPUUtilization", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-two" ]
+                            ],
+                            "view": "timeSeries",
+                            "stacked": false,
+                            "region": "${var.region}",
+                            "stat": "Average",
+                            "period": 300,
+                            "title": "CPUUtilization (Percent)",
+                             "annotations": {
+                                "horizontal": [
+                                          {
+                                "label": "CRITICAL above",
+                                "value": ${var.CPUUtilization_Critical_threshold}
+                                }
+                            ]
+                          }
+                        }
+                    },
+                    {
+                        "type": "metric",
+                        "x": 18,
+                        "y": 12,
+                        "width": 6,
+                        "height": 6,
+                        "properties": {
+                            "view": "timeSeries",
+                            "stacked": false,
+                            "region": "${var.region}",
+                            "stat": "Average",
+                            "period": 300,
+                            "metrics": [
+                                [ "AWS/RDS", "EBSIOBalance%", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-one" ],
+                                [ "AWS/RDS", "EBSIOBalance%", "DBInstanceIdentifier", "${local.identifier_eng_app_env}-two" ]
+                            ],
+                            "title": "EBSIOBalance (Percent)",
+                             "annotations": {
+                                "horizontal": [
+                                  {
+                                "label": "CRITICAL below",
+                               "value": 20
+                                }
+                              ]
+                           }
+                        }
+                    }
+                ]
+            }
+    EOF
+}
