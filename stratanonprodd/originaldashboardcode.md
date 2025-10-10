@@ -1,4 +1,9 @@
-REGION="${AWS_REGION:-$(aws configure get region || echo us-east-1)}"; BROKER_NAME="BROKER_NAME"; CANARY_NAME="strata-file-download"; DB_RESOURCE_ID="DB_RESOURCE_ID"; DB_INSTANCE_ID="DB_INSTANCE_ID"; DASH_NAME="AmazonMQ (strata-idev)"; \
+REGION="us-east-1"; \
+BROKER_NAME="strata-uat-rabbitmq-mq-1mursoa"; \
+DB_INSTANCE_ID="mysql-strata-uat-master"; \
+CANARY_NAME="strata-file-download"; \
+DASH_NAME="AmazonMQ (strata-uat)"; \
+DB_RESOURCE_ID="$(aws rds describe-db-instances --region "$REGION" --db-instance-identifier "$DB_INSTANCE_ID" --query 'DBInstances[0].DbiResourceId' --output text)"; \
 TMP="/tmp/cw-dashboard.json"; \
 cat >"$TMP" <<'__CW_JSON__'
 {
@@ -134,7 +139,7 @@ cat >"$TMP" <<'__CW_JSON__'
     { "type": "log", "x": 0, "y": 42, "width": 24, "height": 6,
       "properties": {
         "region": "${REGION}", "title": "MySQL Slow queries & avg Query_time (Logs Insights)",
-        "query": "SOURCE '/aws/rds/instance/${DB_INSTANCE_ID}/slowquery\\n| filter @message like /Query_time/\\n| parse @message \"# Query_time: * Lock_time: * Rows_sent: * Rows_examined: *\" as query_time, lock_time, rows_sent, rows_examined\\n| stats count() as slow_queries, avg(query_time) as avg_qtime by bin(1m)",
+        "query": "SOURCE '/aws/rds/instance/${DB_INSTANCE_ID}/slowquery'\\n| filter @message like /Query_time/\\n| parse @message \"# Query_time: * Lock_time: * Rows_sent: * Rows_examined: *\" as query_time, lock_time, rows_sent, rows_examined\\n| stats count() as slow_queries, avg(query_time) as avg_qtime by bin(1m)",
         "stacked": false, "view": "timeSeries"
       }
     }
