@@ -1,123 +1,153 @@
-export REGION="us-east-1" \
-CLUSTER_UAT="Strata-uat-eks-OwJIPnj" \
-CLUSTER_IDEV="Strata-uat-eks2-sb3hK0" \
-NAMESPACE_UAT="kube-system" \
-NAMESPACE_IDEV="kube-system" \
-DS_PREFIX_UAT="*" \
-DS_PREFIX_IDEV="*" \
-OUT="/tmp/k8s-daemonsets.json" \
-TMP="/tmp/k8s-daemonsets.tmpl.json" ; \
-cat > "$TMP" <<'JSON'
+cat > /tmp/k8s-daemonsets.json <<'EOF'
 {
   "widgets": [
     { "type": "metric", "x": 0, "y": 0, "width": 24, "height": 3,
-      "properties": { "region": "${REGION}", "title": "Kubernetes DaemonSets (UAT vs IDEV)", "view": "singleValue",
-        "metrics": [ [ { "expression": "1", "label": "Container Insights", "id": "e1" } ] ], "period": 60 } },
+      "properties": {
+        "region": "us-east-1",
+        "title": "Kubernetes DaemonSets (UAT vs IDEV)",
+        "view": "singleValue",
+        "metrics": [ [ { "expression": "1", "label": "Container Insights ready", "id": "e1" } ] ],
+        "period": 60
+      }
+    },
 
     { "type": "metric", "x": 0, "y": 3, "width": 12, "height": 6,
       "properties": {
-        "region": "${REGION}", "title": "CPU usage by DaemonSet (UAT)",
-        "view": "timeSeries", "stat": "Average", "period": 60,
+        "region": "us-east-1",
+        "title": "CPU usage by DaemonSet (UAT)",
+        "view": "timeSeries",
+        "stat": "Average",
+        "period": 60,
         "metrics": [
-          [ { "expression":
-              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_UAT},Namespace,${NAMESPACE_UAT},PodName,${DS_PREFIX_UAT}*} MetricName=\"pod_cpu_utilization\"','Average',60)",
-              "label": "pod_cpu_utilization (uat)", "id": "e_cpu_uat" } ]
+          [
+            { "expression": "SEARCH('{AWS/ContainerInsights,ClusterName,Strata-uat-eks-OwJIPnj,Namespace,kube-system,PodName,*} MetricName=\"pod_cpu_utilization\"','Average',60)",
+              "label": "pod_cpu_utilization (uat)", "id": "cpu_uat" }
+          ]
         ]
       }
     },
 
     { "type": "metric", "x": 12, "y": 3, "width": 12, "height": 6,
       "properties": {
-        "region": "${REGION}", "title": "CPU usage by DaemonSet (IDEV)",
-        "view": "timeSeries", "stat": "Average", "period": 60,
+        "region": "us-east-1",
+        "title": "CPU usage by DaemonSet (IDEV)",
+        "view": "timeSeries",
+        "stat": "Average",
+        "period": 60,
         "metrics": [
-          [ { "expression":
-              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_IDEV},Namespace,${NAMESPACE_IDEV},PodName,${DS_PREFIX_IDEV}*} MetricName=\"pod_cpu_utilization\"','Average',60)",
-              "label": "pod_cpu_utilization (idev)", "id": "e_cpu_idev" } ]
+          [
+            { "expression": "SEARCH('{AWS/ContainerInsights,ClusterName,Strata-uat-eks2-sb3hK0,Namespace,kube-system,PodName,*} MetricName=\"pod_cpu_utilization\"','Average',60)",
+              "label": "pod_cpu_utilization (idev)", "id": "cpu_idev" }
+          ]
         ]
       }
     },
 
     { "type": "metric", "x": 0, "y": 9, "width": 12, "height": 6,
       "properties": {
-        "region": "${REGION}", "title": "Memory usage by DaemonSet (UAT)",
-        "view": "timeSeries", "stat": "Average", "period": 60,
+        "region": "us-east-1",
+        "title": "Memory usage by DaemonSet (UAT)",
+        "view": "timeSeries",
+        "stat": "Average",
+        "period": 60,
         "metrics": [
-          [ { "expression":
-              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_UAT},Namespace,${NAMESPACE_UAT},PodName,${DS_PREFIX_UAT}*} MetricName=\"pod_memory_utilization\"','Average',60)",
-              "label": "pod_memory_utilization (uat)", "id": "e_mem_uat" } ]
+          [
+            { "expression": "SEARCH('{AWS/ContainerInsights,ClusterName,Strata-uat-eks-OwJIPnj,Namespace,kube-system,PodName,*} MetricName=\"pod_memory_utilization\"','Average',60)",
+              "label": "pod_memory_utilization (uat)", "id": "mem_uat" }
+          ]
         ]
       }
     },
 
     { "type": "metric", "x": 12, "y": 9, "width": 12, "height": 6,
       "properties": {
-        "region": "${REGION}", "title": "Memory usage by DaemonSet (IDEV)",
-        "view": "timeSeries", "stat": "Average", "period": 60,
+        "region": "us-east-1",
+        "title": "Memory usage by DaemonSet (IDEV)",
+        "view": "timeSeries",
+        "stat": "Average",
+        "period": 60,
         "metrics": [
-          [ { "expression":
-              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_IDEV},Namespace,${NAMESPACE_IDEV},PodName,${DS_PREFIX_IDEV}*} MetricName=\"pod_memory_utilization\"','Average',60)",
-              "label": "pod_memory_utilization (idev)", "id": "e_mem_idev" } ]
+          [
+            { "expression": "SEARCH('{AWS/ContainerInsights,ClusterName,Strata-uat-eks2-sb3hK0,Namespace,kube-system,PodName,*} MetricName=\"pod_memory_utilization\"','Average',60)",
+              "label": "pod_memory_utilization (idev)", "id": "mem_idev" }
+          ]
         ]
       }
     },
 
     { "type": "metric", "x": 0, "y": 15, "width": 12, "height": 6,
       "properties": {
-        "region": "${REGION}", "title": "Network Rx/Tx (UAT)",
-        "view": "timeSeries", "stat": "Sum", "period": 60,
+        "region": "us-east-1",
+        "title": "Network Rx/Tx (UAT)",
+        "view": "timeSeries",
+        "stat": "Sum",
+        "period": 60,
         "metrics": [
-          [ { "expression":
-              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_UAT},Namespace,${NAMESPACE_UAT},PodName,${DS_PREFIX_UAT}*} MetricName=\"pod_network_rx_bytes\"','Sum',60)",
-              "label": "rx_bytes (uat)", "id": "e_rx_uat" } ],
-          [ { "expression":
-              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_UAT},Namespace,${NAMESPACE_UAT},PodName,${DS_PREFIX_UAT}*} MetricName=\"pod_network_tx_bytes\"','Sum',60)",
-              "label": "tx_bytes (uat)", "id": "e_tx_uat" } ]
+          [
+            { "expression": "SEARCH('{AWS/ContainerInsights,ClusterName,Strata-uat-eks-OwJIPnj,Namespace,kube-system,PodName,*} MetricName=\"pod_network_rx_bytes\"','Sum',60)",
+              "label": "rx_bytes (uat)", "id": "rx_uat" }
+          ],
+          [
+            { "expression": "SEARCH('{AWS/ContainerInsights,ClusterName,Strata-uat-eks-OwJIPnj,Namespace,kube-system,PodName,*} MetricName=\"pod_network_tx_bytes\"','Sum',60)",
+              "label": "tx_bytes (uat)", "id": "tx_uat" }
+          ]
         ]
       }
     },
 
     { "type": "metric", "x": 12, "y": 15, "width": 12, "height": 6,
       "properties": {
-        "region": "${REGION}", "title": "Network Rx/Tx (IDEV)",
-        "view": "timeSeries", "stat": "Sum", "period": 60,
+        "region": "us-east-1",
+        "title": "Network Rx/Tx (IDEV)",
+        "view": "timeSeries",
+        "stat": "Sum",
+        "period": 60,
         "metrics": [
-          [ { "expression":
-              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_IDEV},Namespace,${NAMESPACE_IDEV},PodName,${DS_PREFIX_IDEV}*} MetricName=\"pod_network_rx_bytes\"','Sum',60)",
-              "label": "rx_bytes (idev)", "id": "e_rx_idev" } ],
-          [ { "expression":
-              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_IDEV},Namespace,${NAMESPACE_IDEV},PodName,${DS_PREFIX_IDEV}*} MetricName=\"pod_network_tx_bytes\"','Sum',60)",
-              "label": "tx_bytes (idev)", "id": "e_tx_idev" } ]
+          [
+            { "expression": "SEARCH('{AWS/ContainerInsights,ClusterName,Strata-uat-eks2-sb3hK0,Namespace,kube-system,PodName,*} MetricName=\"pod_network_rx_bytes\"','Sum',60)",
+              "label": "rx_bytes (idev)", "id": "rx_idev" }
+          ],
+          [
+            { "expression": "SEARCH('{AWS/ContainerInsights,ClusterName,Strata-uat-eks2-sb3hK0,Namespace,kube-system,PodName,*} MetricName=\"pod_network_tx_bytes\"','Sum',60)",
+              "label": "tx_bytes (idev)", "id": "tx_idev" }
+          ]
         ]
       }
     },
 
     { "type": "metric", "x": 0, "y": 21, "width": 12, "height": 6,
       "properties": {
-        "region": "${REGION}", "title": "Filesystem usage % (UAT)",
-        "view": "timeSeries", "stat": "Average", "period": 60,
+        "region": "us-east-1",
+        "title": "Filesystem usage % (UAT)",
+        "view": "timeSeries",
+        "stat": "Average",
+        "period": 60,
         "yAxis": { "left": { "min": 0, "max": 100, "label": "%" } },
         "metrics": [
-          [ { "expression":
-              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_UAT},Namespace,${NAMESPACE_UAT},PodName,${DS_PREFIX_UAT}*} MetricName=\"pod_filesystem_utilization\"','Average',60)",
-              "label": "fs_utilization% (uat)", "id": "e_fs_uat" } ]
+          [
+            { "expression": "SEARCH('{AWS/ContainerInsights,ClusterName,Strata-uat-eks-OwJIPnj,Namespace,kube-system,PodName,*} MetricName=\"pod_filesystem_utilization\"','Average',60)",
+              "label": "fs_utilization% (uat)", "id": "fs_uat" }
+          ]
         ]
       }
     },
 
     { "type": "metric", "x": 12, "y": 21, "width": 12, "height": 6,
       "properties": {
-        "region": "${REGION}", "title": "Filesystem usage % (IDEV)",
-        "view": "timeSeries", "stat": "Average", "period": 60,
+        "region": "us-east-1",
+        "title": "Filesystem usage % (IDEV)",
+        "view": "timeSeries",
+        "stat": "Average",
+        "period": 60,
         "yAxis": { "left": { "min": 0, "max": 100, "label": "%" } },
         "metrics": [
-          [ { "expression":
-              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_IDEV},Namespace,${NAMESPACE_IDEV},PodName,${DS_PREFIX_IDEV}*} MetricName=\"pod_filesystem_utilization\"','Average',60)",
-              "label": "fs_utilization% (idev)", "id": "e_fs_idev" } ]
+          [
+            { "expression": "SEARCH('{AWS/ContainerInsights,ClusterName,Strata-uat-eks2-sb3hK0,Namespace,kube-system,PodName,*} MetricName=\"pod_filesystem_utilization\"','Average',60)",
+              "label": "fs_utilization% (idev)", "id": "fs_idev" }
+          ]
         ]
       }
     }
   ]
 }
-JSON
-; envsubst < "$TMP" > "$OUT" ; echo "Wrote $OUT"
+EOF
