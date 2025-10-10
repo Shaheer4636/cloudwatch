@@ -1,4 +1,4 @@
-cat > /tmp/k8s-daemonsets.json <<'EOF'
+cat > k8s-daemonsets.json <<'EOF'
 {
   "widgets": [
     { "type": "metric", "x": 0, "y": 0, "width": 24, "height": 3,
