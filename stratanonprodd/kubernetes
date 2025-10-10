@@ -1,1 +1,168 @@
-{"title":"Kubernetes DaemonSets uat and idev","description":"Our Kubernetes dashboard gives you broad visibility into the scale, status, and resource usage of your cluster and its containers. Further reading for Kubernetes monitoring:\n\n- [Autoscale Kubernetes workloads with any Datadog metric](https://www.datadoghq.com/blog/autoscale-kubernetes-datadog/)\n\n- [How to monitor Kubernetes + Docker with Datadog](https://www.datadoghq.com/blog/monitor-kubernetes-docker/)\n\n- [Monitoring in the Kubernetes era](https://www.datadoghq.com/blog/monitoring-kubernetes-era/)\n\n- [Monitoring Kubernetes performance metrics](https://www.datadoghq.com/blog/monitoring-kubernetes-performance-metrics/)\n\n- [Collecting metrics with built-in Kubernetes monitoring tools](https://www.datadoghq.com/blog/how-to-collect-and-graph-kubernetes-metrics/)\n\n- [Monitoring Kubernetes with Datadog](https://www.datadoghq.com/blog/monitoring-kubernetes-with-datadog/)\n\n- [Datadog's Kubernetes integration docs](https://docs.datadoghq.com/integrations/kubernetes/)\n\nClone this template dashboard to make changes and add your own graph widgets. (cloned)","widgets":[{"id":13,"layout":{"x":0,"y":0,"width":119,"height":5},"definition":{"type":"note","content":"Resources","background_color":"gray","font_size":"18","text_align":"center","show_tick":false,"tick_pos":"50%","tick_edge":"bottom"}},{"id":14,"layout":{"x":0,"y":12,"width":59,"height":24},"definition":{"title":"CPU Usage by DaemonSet","title_size":"16","title_align":"left","show_legend":true,"legend_size":"0","type":"timeseries","requests":[{"formulas":[{"formula":"exclude_null(query1)"}],"response_format":"timeseries","queries":[{"query":"sum:kubernetes.cpu.usage.total{$kube_namespace,$scope,$kube_cluster_name,$kube_daemon_set} by {kube_cluster_name,kube_namespace,kube_daemon_set}","data_source":"metrics","name":"query1"}],"style":{"palette":"dog_classic","line_type":"solid","line_width":"normal"},"display_type":"line"}],"yaxis":{"include_zero":true,"scale":"linear","label":"","min":"auto","max":"auto"},"markers":[]}},{"id":15,"layout":{"x":60,"y":12,"width":59,"height":24},"definition":{"title":"Memory Usage by DaemonSet","title_size":"16","title_align":"left","show_legend":true,"legend_size":"0","type":"timeseries","requests":[{"formulas":[{"formula":"exclude_null(query1)"}],"response_format":"timeseries","queries":[{"query":"sum:kubernetes.memory.usage{$kube_namespace,$scope,$kube_cluster_name,$kube_daemon_set} by {kube_namespace,kube_daemon_set}","data_source":"metrics","name":"query1"}],"style":{"palette":"dog_classic","line_type":"solid","line_width":"normal"},"display_type":"line"}],"yaxis":{"include_zero":true,"scale":"linear","label":"","min":"auto","max":"auto"},"markers":[]}},{"id":16,"layout":{"x":60,"y":37,"width":59,"height":24},"definition":{"title":"Most memory-intensive DaemonSet","title_size":"16","title_align":"left","time":{"live_span":"4h"},"type":"toplist","requests":[{"response_format":"scalar","queries":[{"query":"sum:kubernetes.memory.usage{$scope,$kube_namespace,$kube_cluster_name,$kube_daemon_set} by {kube_namespace,kube_cluster_name,kube_daemon_set}","data_source":"metrics","name":"query1","aggregator":"avg"}],"formulas":[{"formula":"exclude_null(query1)"}],"sort":{"count":10,"order_by":[{"type":"formula","index":0,"order":"desc"}]}}]}},{"id":17,"layout":{"x":0,"y":37,"width":59,"height":24},"definition":{"title":"Most CPU-intensive DaemonSet","title_size":"16","title_align":"left","time":{"live_span":"4h"},"type":"toplist","requests":[{"response_format":"scalar","queries":[{"query":"sum:kubernetes.cpu.usage.total{$scope,$kube_namespace,$kube_cluster_name,$kube_daemon_set} by {kube_namespace,kube_cluster_name,kube_daemon_set}","data_source":"metrics","name":"query1","aggregator":"avg"}],"formulas":[{"formula":"exclude_null(query1)"}],"sort":{"count":10,"order_by":[{"type":"formula","index":0,"order":"desc"}]}}]}},{"id":18,"layout":{"x":0.08333333333333333,"y":62,"width":59,"height":24},"definition":{"title":"CPU requests, limits, and usage","title_size":"16","title_align":"left","show_legend":true,"legend_size":"0","type":"timeseries","requests":[{"response_format":"timeseries","queries":[{"query":"sum:kubernetes.cpu.requests{$kube_namespace,$scope,$kube_cluster_name,$kube_daemon_set}","data_source":"metrics","name":"query1"},{"query":"sum:kubernetes.cpu.usage.total{$kube_namespace,$scope,$kube_cluster_name,$kube_daemon_set}","data_source":"metrics","name":"query2"},{"query":"sum:kubernetes.cpu.limits{$kube_namespace,$scope,$kube_cluster_name,$kube_daemon_set}","data_source":"metrics","name":"query3"}],"style":{"palette":"dog_classic","line_type":"solid","line_width":"normal"},"display_type":"line"}],"yaxis":{"include_zero":true,"scale":"linear","label":"","min":"auto","max":"auto"}}},{"id":19,"layout":{"x":60,"y":62,"width":59,"height":24},"definition":{"title":"Memory requests, limits, and usage","title_size":"16","title_align":"left","show_legend":true,"legend_size":"0","type":"timeseries","requests":[{"response_format":"timeseries","queries":[{"query":"sum:kubernetes.memory.requests{$kube_namespace,$scope,$kube_cluster_name,$kube_daemon_set}","data_source":"metrics","name":"query1"},{"query":"sum:kubernetes.memory.rss{$kube_namespace,$scope,$kube_cluster_name,$kube_daemon_set}","data_source":"metrics","name":"query2"},{"query":"sum:kubernetes.memory.limits{$kube_namespace,$scope,$kube_cluster_name,$kube_daemon_set}","data_source":"metrics","name":"query3"}],"style":{"palette":"dog_classic","line_type":"solid","line_width":"normal"},"display_type":"line"}],"yaxis":{"include_zero":true,"scale":"linear","label":"","min":"auto","max":"auto"}}},{"id":20,"layout":{"x":0,"y":6,"width":59,"height":5},"definition":{"type":"note","content":"CPU","background_color":"gray","font_size":"18","text_align":"center","show_tick":false,"tick_pos":"50%","tick_edge":"bottom"}},{"id":21,"layout":{"x":60,"y":6,"width":59,"height":5},"definition":{"type":"note","content":"Memory","background_color":"gray","font_size":"18","text_align":"center","show_tick":false,"tick_pos":"50%","tick_edge":"bottom"}},{"id":22,"layout":{"x":0,"y":87,"width":59,"height":5},"definition":{"type":"note","content":"Disk","background_color":"gray","font_size":"18","text_align":"center","show_tick":false,"tick_pos":"50%","tick_edge":"bottom"}},{"id":23,"layout":{"x":60,"y":87,"width":59,"height":5},"definition":{"type":"note","content":"Network","background_color":"gray","font_size":"18","text_align":"center","show_tick":false,"tick_pos":"50%","tick_edge":"bottom"}},{"id":24,"layout":{"x":60,"y":93,"width":59,"height":24},"definition":{"title":"Network Usage (Rx / Tx rate)","title_size":"16","title_align":"left","show_legend":true,"legend_size":"0","type":"timeseries","requests":[{"formulas":[{"formula":"exclude_null(query1)"},{"formula":"exclude_null(query2)"}],"response_format":"timeseries","queries":[{"query":"sum:kubernetes.network.rx_bytes{$kube_namespace,$scope,$kube_cluster_name,$kube_daemon_set} by {kube_namespace,kube_cluster_name,kube_daemon_set}","data_source":"metrics","name":"query1"},{"query":"sum:kubernetes.network.tx_bytes{$kube_namespace,$scope,$kube_cluster_name,$kube_daemon_set} by {kube_namespace,kube_cluster_name,kube_daemon_set}","data_source":"metrics","name":"query2"}],"style":{"palette":"dog_classic","line_type":"solid","line_width":"normal"},"display_type":"line"}],"yaxis":{"include_zero":true,"scale":"linear","label":"","min":"auto","max":"auto"},"markers":[]}},{"id":25,"layout":{"x":60,"y":118,"width":59,"height":24},"definition":{"title":"Network Errors","title_size":"16","title_align":"left","show_legend":true,"legend_size":"0","type":"timeseries","requests":[{"formulas":[{"formula":"exclude_null(query1)"},{"formula":"exclude_null(query2)"}],"response_format":"timeseries","queries":[{"query":"sum:kubernetes.network.rx_errors{$kube_namespace,$scope,$kube_cluster_name,$kube_daemon_set} by {kube_namespace,kube_cluster_name,kube_daemon_set}","data_source":"metrics","name":"query1"},{"query":"sum:kubernetes.network.tx_errors{$kube_namespace,$scope,$kube_cluster_name,$kube_daemon_set} by {kube_namespace,kube_cluster_name,kube_daemon_set}","data_source":"metrics","name":"query2"}],"style":{"palette":"dog_classic","line_type":"solid","line_width":"normal"},"display_type":"line"}],"yaxis":{"include_zero":true,"scale":"linear","label":"","min":"auto","max":"auto"},"markers":[{"label":"y = 0","value":"y = 0","display_type":"ok dashed"}]}},{"id":26,"layout":{"x":0,"y":93,"width":59,"height":24},"definition":{"title":"Disk Usage","title_size":"16","title_align":"left","show_legend":true,"legend_size":"0","type":"timeseries","requests":[{"formulas":[{"formula":"exclude_null(query1)"}],"response_format":"timeseries","queries":[{"query":"sum:kubernetes.filesystem.usage{$kube_namespace,$scope,$kube_cluster_name,$kube_daemon_set} by {kube_namespace,kube_cluster_name,kube_daemon_set}","data_source":"metrics","name":"query1"}],"style":{"palette":"dog_classic","line_type":"solid","line_width":"normal"},"display_type":"line"}],"yaxis":{"include_zero":true,"scale":"linear","label":"","min":"auto","max":"auto"},"markers":[]}},{"id":27,"layout":{"x":0,"y":118,"width":59,"height":24},"definition":{"title":"Disk Usage %","title_size":"16","title_align":"left","show_legend":true,"legend_size":"0","type":"timeseries","requests":[{"formulas":[{"formula":"exclude_null(query1) * 100"}],"response_format":"timeseries","queries":[{"query":"sum:kubernetes.filesystem.usage_pct{$kube_namespace,$scope,$kube_cluster_name,$kube_daemon_set} by {kube_namespace,kube_cluster_name,kube_daemon_set}","data_source":"metrics","name":"query1"}],"style":{"palette":"dog_classic","line_type":"solid","line_width":"normal"},"display_type":"line"}],"yaxis":{"include_zero":true,"scale":"linear","label":"","min":"auto","max":"auto"},"markers":[{"label":" 100% ","value":"y = 100","display_type":"error dashed"}]}},{"id":28,"layout":{"x":0,"y":143,"width":59,"height":24},"definition":{"title":"Most Disk-intensive DaemonSets","title_size":"16","title_align":"left","time":{"live_span":"4h"},"type":"toplist","requests":[{"response_format":"scalar","queries":[{"query":"sum:kubernetes.filesystem.usage{$scope,$kube_namespace,$kube_cluster_name,$kube_daemon_set} by {kube_namespace,kube_cluster_name,kube_daemon_set}","data_source":"metrics","name":"query1","aggregator":"avg"}],"formulas":[{"formula":"exclude_null(query1)"}],"sort":{"count":10,"order_by":[{"type":"formula","index":0,"order":"desc"}]}}]}},{"id":29,"layout":{"x":60,"y":143,"width":59,"height":24},"definition":{"title":"Most Network-intensive DaemonSets","title_size":"16","title_align":"left","time":{"live_span":"4h"},"type":"toplist","requests":[{"response_format":"scalar","queries":[{"query":"sum:kubernetes.network.tx_bytes{$scope,$kube_namespace,$kube_cluster_name,$kube_daemon_set} by {kube_namespace,kube_cluster_name,kube_daemon_set}","data_source":"metrics","name":"query1","aggregator":"avg"}],"formulas":[{"formula":"exclude_null(query1)"}],"sort":{"count":10,"order_by":[{"type":"formula","index":0,"order":"desc"}]}}]}}],"template_variables":[{"name":"scope","available_values":[],"default":"*"},{"name":"kube_cluster_name","prefix":"kube_cluster_name","available_values":[],"default":"*"},{"name":"kube_namespace","prefix":"kube_namespace","available_values":[],"default":"*"},{"name":"kube_daemon_set","prefix":"kube_daemon_set","available_values":[],"default":"*"}],"layout_type":"free","notify_list":[],"tags":[]}
+REGION="us-east-1" \
+CLUSTER_UAT="STRATA-UAT-CLUSTER-NAME" \
+CLUSTER_IDEV="STRATA-IDEV-CLUSTER-NAME" \
+NAMESPACE_UAT="kube-system" \
+NAMESPACE_IDEV="kube-system" \
+DS_PREFIX_UAT="*" \
+DS_PREFIX_IDEV="*" \
+DASH_FILE="/tmp/k8s-daemonsets.json" \
+DASH_NAME="K8s-DaemonSets-uat-idev"; \
+cat > "$DASH_FILE" <<'JSON'
+{
+  "widgets": [
+    { "type": "metric", "x": 0, "y": 0, "width": 24, "height": 3,
+      "properties": { "region": "${REGION}", "title": "Kubernetes DaemonSets (uat & idev)", "view": "singleValue",
+        "metrics": [ [ { "expression": "1", "label": "Resources", "id": "e1" } ] ], "period": 60 } },
+
+    /* -------- CPU (uat) -------- */
+    { "type": "metric", "x": 0, "y": 3, "width": 12, "height": 6,
+      "properties": {
+        "region": "${REGION}", "title": "CPU usage by DaemonSet (uat)",
+        "view": "timeSeries", "stat": "Average", "period": 60,
+        "metrics": [
+          [ { "expression":
+              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_UAT},Namespace,${NAMESPACE_UAT},PodName,${DS_PREFIX_UAT}*} MetricName=\"pod_cpu_utilization\"','Average',60)",
+              "label": "pod_cpu_utilization (uat)", "id": "e_cpu_uat" } ]
+        ]
+      }
+    },
+
+    /* -------- CPU (idev) -------- */
+    { "type": "metric", "x": 12, "y": 3, "width": 12, "height": 6,
+      "properties": {
+        "region": "${REGION}", "title": "CPU usage by DaemonSet (idev)",
+        "view": "timeSeries", "stat": "Average", "period": 60,
+        "metrics": [
+          [ { "expression":
+              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_IDEV},Namespace,${NAMESPACE_IDEV},PodName,${DS_PREFIX_IDEV}*} MetricName=\"pod_cpu_utilization\"','Average',60)",
+              "label": "pod_cpu_utilization (idev)", "id": "e_cpu_idev" } ]
+        ]
+      }
+    },
+
+    /* -------- Memory (uat) -------- */
+    { "type": "metric", "x": 0, "y": 9, "width": 12, "height": 6,
+      "properties": {
+        "region": "${REGION}", "title": "Memory usage by DaemonSet (uat)",
+        "view": "timeSeries", "stat": "Average", "period": 60,
+        "metrics": [
+          [ { "expression":
+              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_UAT},Namespace,${NAMESPACE_UAT},PodName,${DS_PREFIX_UAT}*} MetricName=\"pod_memory_utilization\"','Average',60)",
+              "label": "pod_memory_utilization (uat)", "id": "e_mem_uat" } ]
+        ]
+      }
+    },
+
+    /* -------- Memory (idev) -------- */
+    { "type": "metric", "x": 12, "y": 9, "width": 12, "height": 6,
+      "properties": {
+        "region": "${REGION}", "title": "Memory usage by DaemonSet (idev)",
+        "view": "timeSeries", "stat": "Average", "period": 60,
+        "metrics": [
+          [ { "expression":
+              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_IDEV},Namespace,${NAMESPACE_IDEV},PodName,${DS_PREFIX_IDEV}*} MetricName=\"pod_memory_utilization\"','Average',60)",
+              "label": "pod_memory_utilization (idev)", "id": "e_mem_idev" } ]
+        ]
+      }
+    },
+
+    /* -------- Requests, Limits, Usage (uat) -------- */
+    { "type": "metric", "x": 0, "y": 15, "width": 12, "height": 6,
+      "properties": {
+        "region": "${REGION}", "title": "CPU requests/limits vs usage (uat)",
+        "view": "timeSeries", "stat": "Average", "period": 60,
+        "metrics": [
+          [ { "expression":
+              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_UAT},Namespace,${NAMESPACE_UAT}} MetricName=\"pod_cpu_reserved_capacity\"','Average',60)",
+              "label": "cpu_reserved_capacity (uat)", "id": "e_cpu_req_uat" } ],
+          [ { "expression":
+              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_UAT},Namespace,${NAMESPACE_UAT}} MetricName=\"pod_cpu_limit\"','Average',60)",
+              "label": "cpu_limit (uat)", "id": "e_cpu_limit_uat" } ],
+          [ { "expression":
+              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_UAT},Namespace,${NAMESPACE_UAT},PodName,${DS_PREFIX_UAT}*} MetricName=\"pod_cpu_utilization\"','Average',60)",
+              "label": "cpu_utilization (uat)", "id": "e_cpu_use_uat" } ]
+        ]
+      }
+    },
+
+    /* -------- Requests, Limits, Usage (idev) -------- */
+    { "type": "metric", "x": 12, "y": 15, "width": 12, "height": 6,
+      "properties": {
+        "region": "${REGION}", "title": "CPU requests/limits vs usage (idev)",
+        "view": "timeSeries", "stat": "Average", "period": 60,
+        "metrics": [
+          [ { "expression":
+              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_IDEV},Namespace,${NAMESPACE_IDEV}} MetricName=\"pod_cpu_reserved_capacity\"','Average',60)",
+              "label": "cpu_reserved_capacity (idev)", "id": "e_cpu_req_idev" } ],
+          [ { "expression":
+              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_IDEV},Namespace,${NAMESPACE_IDEV}} MetricName=\"pod_cpu_limit\"','Average',60)",
+              "label": "cpu_limit (idev)", "id": "e_cpu_limit_idev" } ],
+          [ { "expression":
+              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_IDEV},Namespace,${NAMESPACE_IDEV},PodName,${DS_PREFIX_IDEV}*} MetricName=\"pod_cpu_utilization\"','Average',60)",
+              "label": "cpu_utilization (idev)", "id": "e_cpu_use_idev" } ]
+        ]
+      }
+    },
+
+    /* -------- Network (uat) -------- */
+    { "type": "metric", "x": 0, "y": 21, "width": 12, "height": 6,
+      "properties": {
+        "region": "${REGION}", "title": "Network Rx/Tx (uat)",
+        "view": "timeSeries", "stat": "Sum", "period": 60,
+        "metrics": [
+          [ { "expression":
+              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_UAT},Namespace,${NAMESPACE_UAT},PodName,${DS_PREFIX_UAT}*} MetricName=\"pod_network_rx_bytes\"','Sum',60)",
+              "label": "rx_bytes (uat)", "id": "e_rx_uat" } ],
+          [ { "expression":
+              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_UAT},Namespace,${NAMESPACE_UAT},PodName,${DS_PREFIX_UAT}*} MetricName=\"pod_network_tx_bytes\"','Sum',60)",
+              "label": "tx_bytes (uat)", "id": "e_tx_uat" } ]
+        ]
+      }
+    },
+
+    /* -------- Network (idev) -------- */
+    { "type": "metric", "x": 12, "y": 21, "width": 12, "height": 6,
+      "properties": {
+        "region": "${REGION}", "title": "Network Rx/Tx (idev)",
+        "view": "timeSeries", "stat": "Sum", "period": 60,
+        "metrics": [
+          [ { "expression":
+              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_IDEV},Namespace,${NAMESPACE_IDEV},PodName,${DS_PREFIX_IDEV}*} MetricName=\"pod_network_rx_bytes\"','Sum',60)",
+              "label": "rx_bytes (idev)", "id": "e_rx_idev" } ],
+          [ { "expression":
+              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_IDEV},Namespace,${NAMESPACE_IDEV},PodName,${DS_PREFIX_IDEV}*} MetricName=\"pod_network_tx_bytes\"','Sum',60)",
+              "label": "tx_bytes (idev)", "id": "e_tx_idev" } ]
+        ]
+      }
+    },
+
+    /* -------- Filesystem (uat) -------- */
+    { "type": "metric", "x": 0, "y": 27, "width": 12, "height": 6,
+      "properties": {
+        "region": "${REGION}", "title": "Filesystem usage % (uat)",
+        "view": "timeSeries", "stat": "Average", "period": 60,
+        "yAxis": { "left": { "min": 0, "max": 100, "label": "%" } },
+        "metrics": [
+          [ { "expression":
+              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_UAT},Namespace,${NAMESPACE_UAT},PodName,${DS_PREFIX_UAT}*} MetricName=\"pod_filesystem_utilization\"','Average',60)",
+              "label": "fs_utilization% (uat)", "id": "e_fs_uat" } ]
+        ]
+      }
+    },
+
+    /* -------- Filesystem (idev) -------- */
+    { "type": "metric", "x": 12, "y": 27, "width": 12, "height": 6,
+      "properties": {
+        "region": "${REGION}", "title": "Filesystem usage % (idev)",
+        "view": "timeSeries", "stat": "Average", "period": 60,
+        "yAxis": { "left": { "min": 0, "max": 100, "label": "%" } },
+        "metrics": [
+          [ { "expression":
+              "SEARCH('{AWS/ContainerInsights,ClusterName,${CLUSTER_IDEV},Namespace,${NAMESPACE_IDEV},PodName,${DS_PREFIX_IDEV}*} MetricName=\"pod_filesystem_utilization\"','Average',60)",
+              "label": "fs_utilization% (idev)", "id": "e_fs_idev" } ]
+        ]
+      }
+    }
+  ]
+}
+JSON
