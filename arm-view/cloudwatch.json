@@ -1,180 +1,20 @@
-rm -f apm_ingestion_dashboard.json
-cat > apm_ingestion_dashboard.json <<'JSON'
-{"widgets":[
-  {"type":"text","x":0,"y":0,"width":24,"height":2,"properties":{"markdown":"# APM Traces Ingestion Reasons Overview"}},
-  {"type":"text","x":0,"y":2,"width":24,"height":2,"properties":{"markdown":"## Overview by Env and Service"}},
+jq . apm_ingestion_dashboard.json >/dev/null && echo "JSON OK"
 
-  /* ===== GLOBAL (all envs) ===== */
-  {"type":"metric","x":0,"y":4,"width":8,"height":8,"properties":{
-    "region":"us-east-1","view":"pie","stat":"Sum","period":300,"title":"Ingested bytes by reason (ALL ENVS)",
-    "metrics":[
-      ["Custom/APM","IngestedBytes","IngestionReason","auto"],
-      [".",".","IngestionReason","error"],
-      [".",".","IngestionReason","rare"],
-      [".",".","IngestionReason","rule"],
-      [".",".","IngestionReason","manual"],
-      [".",".","IngestionReason","analytics"],
-      [".",".","IngestionReason","synthetics"],
-      [".",".","IngestionReason","synthetics-browser"],
-      [".",".","IngestionReason","rum"],
-      [".",".","IngestionReason","xray"],
-      [".",".","IngestionReason","lambda"],
-      [".",".","IngestionReason","appsec"],
-      [".",".","IngestionReason","unknown"]
-    ]}},
+aws cloudwatch put-dashboard \
+  --dashboard-name "APM-Traces-Ingestion-Reasons-Overview" \
+  --dashboard-body file://apm_ingestion_dashboard.json
 
-  {"type":"metric","x":8,"y":4,"width":16,"height":8,"properties":{
-    "region":"us-east-1","view":"timeSeries","stat":"Sum","period":300,"stacked":true,
-    "title":"Ingestion reasons contributing to ingestion volume over time (ALL ENVS)",
-    "metrics":[
-      ["Custom/APM","IngestedBytes","IngestionReason","auto"],
-      [".",".","IngestionReason","error"],
-      [".",".","IngestionReason","rare"],
-      [".",".","IngestionReason","rule"],
-      [".",".","IngestionReason","manual"],
-      [".",".","IngestionReason","analytics"],
-      [".",".","IngestionReason","synthetics"],
-      [".",".","IngestionReason","synthetics-browser"],
-      [".",".","IngestionReason","rum"],
-      [".",".","IngestionReason","xray"],
-      [".",".","IngestionReason","lambda"],
-      [".",".","IngestionReason","appsec"],
-      [".",".","IngestionReason","unknown"]
-    ]}},
 
-  {"type":"metric","x":0,"y":12,"width":24,"height":8,"properties":{
-    "region":"us-east-1","view":"timeSeries","stat":"Sum","period":300,"stacked":true,
-    "title":"Ingested bytes by reason over time (ALL ENVS)",
-    "metrics":[
-      ["Custom/APM","IngestedBytes","IngestionReason","auto"],
-      [".",".","IngestionReason","error"],
-      [".",".","IngestionReason","rare"],
-      [".",".","IngestionReason","rule"],
-      [".",".","IngestionReason","manual"],
-      [".",".","IngestionReason","analytics"],
-      [".",".","IngestionReason","synthetics"],
-      [".",".","IngestionReason","synthetics-browser"],
-      [".",".","IngestionReason","rum"],
-      [".",".","IngestionReason","xray"],
-      [".",".","IngestionReason","lambda"],
-      [".",".","IngestionReason","appsec"],
-      [".",".","IngestionReason","unknown"]
-    ]}},
-
-  /* ===== IDEV ===== */
-  {"type":"text","x":0,"y":20,"width":24,"height":2,"properties":{"markdown":"## Env: idev"}},
-  {"type":"metric","x":0,"y":22,"width":8,"height":8,"properties":{
-    "region":"us-east-1","view":"pie","stat":"Sum","period":300,"title":"Ingested bytes by reason (idev)",
-    "metrics":[
-      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","auto"],
-      [".",".","Env","idev","IngestionReason","error"],
-      [".",".","Env","idev","IngestionReason","rare"],
-      [".",".","Env","idev","IngestionReason","rule"],
-      [".",".","Env","idev","IngestionReason","manual"],
-      [".",".","Env","idev","IngestionReason","analytics"],
-      [".",".","Env","idev","IngestionReason","synthetics"],
-      [".",".","Env","idev","IngestionReason","synthetics-browser"],
-      [".",".","Env","idev","IngestionReason","rum"],
-      [".",".","Env","idev","IngestionReason","xray"],
-      [".",".","Env","idev","IngestionReason","lambda"],
-      [".",".","Env","idev","IngestionReason","appsec"],
-      [".",".","Env","idev","IngestionReason","unknown"]
-    ]}},
-
-  {"type":"metric","x":8,"y":22,"width":16,"height":8,"properties":{
-    "region":"us-east-1","view":"timeSeries","stat":"Sum","period":300,"stacked":true,
-    "title":"Ingestion reasons contributing over time (idev)",
-    "metrics":[
-      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","auto"],
-      [".",".","Env","idev","IngestionReason","error"],
-      [".",".","Env","idev","IngestionReason","rare"],
-      [".",".","Env","idev","IngestionReason","rule"],
-      [".",".","Env","idev","IngestionReason","manual"],
-      [".",".","Env","idev","IngestionReason","analytics"],
-      [".",".","Env","idev","IngestionReason","synthetics"],
-      [".",".","Env","idev","IngestionReason","synthetics-browser"],
-      [".",".","Env","idev","IngestionReason","rum"],
-      [".",".","Env","idev","IngestionReason","xray"],
-      [".",".","Env","idev","IngestionReason","lambda"],
-      [".",".","Env","idev","IngestionReason","appsec"],
-      [".",".","Env","idev","IngestionReason","unknown"]
-    ]}},
-
-  {"type":"metric","x":0,"y":30,"width":24,"height":8,"properties":{
-    "region":"us-east-1","view":"timeSeries","stat":"Sum","period":300,"stacked":true,
-    "title":"Ingested bytes by reason over time (idev)",
-    "metrics":[
-      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","auto"],
-      [".",".","Env","idev","IngestionReason","error"],
-      [".",".","Env","idev","IngestionReason","rare"],
-      [".",".","Env","idev","IngestionReason","rule"],
-      [".",".","Env","idev","IngestionReason","manual"],
-      [".",".","Env","idev","IngestionReason","analytics"],
-      [".",".","Env","idev","IngestionReason","synthetics"],
-      [".",".","Env","idev","IngestionReason","synthetics-browser"],
-      [".",".","Env","idev","IngestionReason","rum"],
-      [".",".","Env","idev","IngestionReason","xray"],
-      [".",".","Env","idev","IngestionReason","lambda"],
-      [".",".","Env","idev","IngestionReason","appsec"],
-      [".",".","Env","idev","IngestionReason","unknown"]
-    ]}},
-
-  /* ===== UAT ===== */
-  {"type":"text","x":0,"y":38,"width":24,"height":2,"properties":{"markdown":"## Env: uat"}},
-  {"type":"metric","x":0,"y":40,"width":8,"height":8,"properties":{
-    "region":"us-east-1","view":"pie","stat":"Sum","period":300,"title":"Ingested bytes by reason (uat)",
-    "metrics":[
-      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","auto"],
-      [".",".","Env","uat","IngestionReason","error"],
-      [".",".","Env","uat","IngestionReason","rare"],
-      [".",".","Env","uat","IngestionReason","rule"],
-      [".",".","Env","uat","IngestionReason","manual"],
-      [".",".","Env","uat","IngestionReason","analytics"],
-      [".",".","Env","uat","IngestionReason","synthetics"],
-      [".",".","Env","uat","IngestionReason","synthetics-browser"],
-      [".",".","Env","uat","IngestionReason","rum"],
-      [".",".","Env","uat","IngestionReason","xray"],
-      [".",".","Env","uat","IngestionReason","lambda"],
-      [".",".","Env","uat","IngestionReason","appsec"],
-      [".",".","Env","uat","IngestionReason","unknown"]
-    ]}},
-
-  {"type":"metric","x":8,"y":40,"width":16,"height":8,"properties":{
-    "region":"us-east-1","view":"timeSeries","stat":"Sum","period":300,"stacked":true,
-    "title":"Ingestion reasons contributing over time (uat)",
-    "metrics":[
-      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","auto"],
-      [".",".","Env","uat","IngestionReason","error"],
-      [".",".","Env","uat","IngestionReason","rare"],
-      [".",".","Env","uat","IngestionReason","rule"],
-      [".",".","Env","uat","IngestionReason","manual"],
-      [".",".","Env","uat","IngestionReason","analytics"],
-      [".",".","Env","uat","IngestionReason","synthetics"],
-      [".",".","Env","uat","IngestionReason","synthetics-browser"],
-      [".",".","Env","uat","IngestionReason","rum"],
-      [".",".","Env","uat","IngestionReason","xray"],
-      [".",".","Env","uat","IngestionReason","lambda"],
-      [".",".","Env","uat","IngestionReason","appsec"],
-      [".",".","Env","uat","IngestionReason","unknown"]
-    ]}},
-
-  {"type":"metric","x":0,"y":48,"width":24,"height":8,"properties":{
-    "region":"us-east-1","view":"timeSeries","stat":"Sum","period":300,"stacked":true,
-    "title":"Ingested bytes by reason over time (uat)",
-    "metrics":[
-      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","auto"],
-      [".",".","Env","uat","IngestionReason","error"],
-      [".",".","Env","uat","IngestionReason","rare"],
-      [".",".","Env","uat","IngestionReason","rule"],
-      [".",".","Env","uat","IngestionReason","manual"],
-      [".",".","Env","uat","IngestionReason","analytics"],
-      [".",".","Env","uat","IngestionReason","synthetics"],
-      [".",".","Env","uat","IngestionReason","synthetics-browser"],
-      [".",".","Env","uat","IngestionReason","rum"],
-      [".",".","Env","uat","IngestionReason","xray"],
-      [".",".","Env","uat","IngestionReason","lambda"],
-      [".",".","Env","uat","IngestionReason","appsec"],
-      [".",".","Env","uat","IngestionReason","unknown"]
-    ]}}
-]}
-JSON
+ENV_LIST=("idev" "uat")
+REASONS=("auto" "error" "rare" "rule" "manual" "analytics" "synthetics" "synthetics-browser" "rum" "xray" "lambda" "appsec" "unknown")
+for ENV in "${ENV_LIST[@]}"; do
+  for R in "${REASONS[@]}"; do
+    aws cloudwatch put-metric-data --namespace "Custom/APM" --metric-data "[
+      {\"MetricName\":\"IngestedBytes\",\"Dimensions\":[
+        {\"Name\":\"Env\",\"Value\":\"$ENV\"},
+        {\"Name\":\"Service\",\"Value\":\"checkout\"},
+        {\"Name\":\"IngestionReason\",\"Value\":\"$R\"}],
+       \"Value\":$(( (RANDOM%50+1)*1024*1024 )),\"Unit\":\"Bytes\",\"StorageResolution\":60}
+    ]"
+  done
+done
