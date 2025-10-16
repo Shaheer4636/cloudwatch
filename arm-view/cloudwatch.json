@@ -1,20 +1,188 @@
-jq . apm_ingestion_dashboard.json >/dev/null && echo "JSON OK"
+rm -f apm_ingestion_dashboard.json
+cat > apm_ingestion_dashboard.json <<'JSON'
+{"widgets":[
+  {"type":"text","x":0,"y":0,"width":24,"height":2,"properties":{"markdown":"# APM Traces Ingestion Reasons Overview"}},
+  {"type":"text","x":0,"y":2,"width":24,"height":2,"properties":{"markdown":"## Overview by Env and Service"}},
 
-aws cloudwatch put-dashboard \
-  --dashboard-name "APM-Traces-Ingestion-Reasons-Overview" \
-  --dashboard-body file://apm_ingestion_dashboard.json
+  {"type":"metric","x":0,"y":4,"width":8,"height":8,"properties":{
+    "region":"us-east-1","view":"pie","stat":"Sum","period":300,"title":"Ingested bytes by reason (ALL ENVS)",
+    "metrics":[
+      ["Custom/APM","IngestedBytes","IngestionReason","auto"],
+      ["Custom/APM","IngestedBytes","IngestionReason","error"],
+      ["Custom/APM","IngestedBytes","IngestionReason","rare"],
+      ["Custom/APM","IngestedBytes","IngestionReason","rule"],
+      ["Custom/APM","IngestedBytes","IngestionReason","manual"],
+      ["Custom/APM","IngestedBytes","IngestionReason","analytics"],
+      ["Custom/APM","IngestedBytes","IngestionReason","synthetics"],
+      ["Custom/APM","IngestedBytes","IngestionReason","synthetics-browser"],
+      ["Custom/APM","IngestedBytes","IngestionReason","rum"],
+      ["Custom/APM","IngestedBytes","IngestionReason","xray"],
+      ["Custom/APM","IngestedBytes","IngestionReason","lambda"],
+      ["Custom/APM","IngestedBytes","IngestionReason","appsec"],
+      ["Custom/APM","IngestedBytes","IngestionReason","unknown"]
+    ]
+  }},
 
+  {"type":"metric","x":8,"y":4,"width":16,"height":8,"properties":{
+    "region":"us-east-1","view":"timeSeries","stat":"Sum","period":300,"stacked":true,
+    "title":"Ingestion reasons contributing to ingestion volume over time (ALL ENVS)",
+    "metrics":[
+      ["Custom/APM","IngestedBytes","IngestionReason","auto"],
+      ["Custom/APM","IngestedBytes","IngestionReason","error"],
+      ["Custom/APM","IngestedBytes","IngestionReason","rare"],
+      ["Custom/APM","IngestedBytes","IngestionReason","rule"],
+      ["Custom/APM","IngestedBytes","IngestionReason","manual"],
+      ["Custom/APM","IngestedBytes","IngestionReason","analytics"],
+      ["Custom/APM","IngestedBytes","IngestionReason","synthetics"],
+      ["Custom/APM","IngestedBytes","IngestionReason","synthetics-browser"],
+      ["Custom/APM","IngestedBytes","IngestionReason","rum"],
+      ["Custom/APM","IngestedBytes","IngestionReason","xray"],
+      ["Custom/APM","IngestedBytes","IngestionReason","lambda"],
+      ["Custom/APM","IngestedBytes","IngestionReason","appsec"],
+      ["Custom/APM","IngestedBytes","IngestionReason","unknown"]
+    ]
+  }},
 
-ENV_LIST=("idev" "uat")
-REASONS=("auto" "error" "rare" "rule" "manual" "analytics" "synthetics" "synthetics-browser" "rum" "xray" "lambda" "appsec" "unknown")
-for ENV in "${ENV_LIST[@]}"; do
-  for R in "${REASONS[@]}"; do
-    aws cloudwatch put-metric-data --namespace "Custom/APM" --metric-data "[
-      {\"MetricName\":\"IngestedBytes\",\"Dimensions\":[
-        {\"Name\":\"Env\",\"Value\":\"$ENV\"},
-        {\"Name\":\"Service\",\"Value\":\"checkout\"},
-        {\"Name\":\"IngestionReason\",\"Value\":\"$R\"}],
-       \"Value\":$(( (RANDOM%50+1)*1024*1024 )),\"Unit\":\"Bytes\",\"StorageResolution\":60}
-    ]"
-  done
-done
+  {"type":"metric","x":0,"y":12,"width":24,"height":8,"properties":{
+    "region":"us-east-1","view":"timeSeries","stat":"Sum","period":300,"stacked":true,
+    "title":"Ingested bytes by reason over time (ALL ENVS)",
+    "metrics":[
+      ["Custom/APM","IngestedBytes","IngestionReason","auto"],
+      ["Custom/APM","IngestedBytes","IngestionReason","error"],
+      ["Custom/APM","IngestedBytes","IngestionReason","rare"],
+      ["Custom/APM","IngestedBytes","IngestionReason","rule"],
+      ["Custom/APM","IngestedBytes","IngestionReason","manual"],
+      ["Custom/APM","IngestedBytes","IngestionReason","analytics"],
+      ["Custom/APM","IngestedBytes","IngestionReason","synthetics"],
+      ["Custom/APM","IngestedBytes","IngestionReason","synthetics-browser"],
+      ["Custom/APM","IngestedBytes","IngestionReason","rum"],
+      ["Custom/APM","IngestedBytes","IngestionReason","xray"],
+      ["Custom/APM","IngestedBytes","IngestionReason","lambda"],
+      ["Custom/APM","IngestedBytes","IngestionReason","appsec"],
+      ["Custom/APM","IngestedBytes","IngestionReason","unknown"]
+    ]
+  }},
+
+  {"type":"text","x":0,"y":20,"width":24,"height":2,"properties":{"markdown":"## Env: idev"}},
+
+  {"type":"metric","x":0,"y":22,"width":8,"height":8,"properties":{
+    "region":"us-east-1","view":"pie","stat":"Sum","period":300,"title":"Ingested bytes by reason (idev)",
+    "metrics":[
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","auto"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","error"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","rare"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","rule"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","manual"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","analytics"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","synthetics"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","synthetics-browser"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","rum"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","xray"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","lambda"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","appsec"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","unknown"]
+    ]
+  }},
+
+  {"type":"metric","x":8,"y":22,"width":16,"height":8,"properties":{
+    "region":"us-east-1","view":"timeSeries","stat":"Sum","period":300,"stacked":true,
+    "title":"Ingestion reasons contributing over time (idev)",
+    "metrics":[
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","auto"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","error"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","rare"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","rule"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","manual"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","analytics"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","synthetics"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","synthetics-browser"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","rum"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","xray"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","lambda"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","appsec"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","unknown"]
+    ]
+  }},
+
+  {"type":"metric","x":0,"y":30,"width":24,"height":8,"properties":{
+    "region":"us-east-1","view":"timeSeries","stat":"Sum","period":300,"stacked":true,
+    "title":"Ingested bytes by reason over time (idev)",
+    "metrics":[
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","auto"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","error"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","rare"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","rule"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","manual"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","analytics"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","synthetics"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","synthetics-browser"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","rum"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","xray"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","lambda"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","appsec"],
+      ["Custom/APM","IngestedBytes","Env","idev","IngestionReason","unknown"]
+    ]
+  }},
+
+  {"type":"text","x":0,"y":38,"width":24,"height":2,"properties":{"markdown":"## Env: uat"}},
+
+  {"type":"metric","x":0,"y":40,"width":8,"height":8,"properties":{
+    "region":"us-east-1","view":"pie","stat":"Sum","period":300,"title":"Ingested bytes by reason (uat)",
+    "metrics":[
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","auto"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","error"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","rare"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","rule"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","manual"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","analytics"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","synthetics"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","synthetics-browser"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","rum"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","xray"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","lambda"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","appsec"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","unknown"]
+    ]
+  }},
+
+  {"type":"metric","x":8,"y":40,"width":16,"height":8,"properties":{
+    "region":"us-east-1","view":"timeSeries","stat":"Sum","period":300,"stacked":true,
+    "title":"Ingestion reasons contributing over time (uat)",
+    "metrics":[
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","auto"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","error"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","rare"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","rule"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","manual"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","analytics"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","synthetics"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","synthetics-browser"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","rum"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","xray"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","lambda"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","appsec"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","unknown"]
+    ]
+  }},
+
+  {"type":"metric","x":0,"y":48,"width":24,"height":8,"properties":{
+    "region":"us-east-1","view":"timeSeries","stat":"Sum","period":300,"stacked":true,
+    "title":"Ingested bytes by reason over time (uat)",
+    "metrics":[
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","auto"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","error"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","rare"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","rule"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","manual"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","analytics"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","synthetics"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","synthetics-browser"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","rum"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","xray"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","lambda"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","appsec"],
+      ["Custom/APM","IngestedBytes","Env","uat","IngestionReason","unknown"]
+    ]
+  }}
+]}
+JSON
