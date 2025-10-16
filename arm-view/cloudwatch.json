@@ -1,20 +1,8 @@
-jq . apm_ingestion_dashboard.json >/dev/null && echo "JSON OK"
+sudo yum -y install jq >/dev/null 2>&1 || true
 
-aws cloudwatch put-dashboard \
-  --dashboard-name "APM-Traces-Ingestion-Reasons-Overview" \
-  --dashboard-body file://apm_ingestion_dashboard.json
-
-
-
-ENV_LIST=("idev" "uat")
-REASONS=("auto" "error" "rare" "rule" "manual" "analytics" "synthetics" "synthetics-browser" "rum" "xray" "lambda" "appsec" "unknown")
-for ENV in "${ENV_LIST[@]}"; do
-  for R in "${REASONS[@]}"; do
-    aws cloudwatch put-metric-data --namespace "Custom/APM" --metric-data "[
-      {\"MetricName\":\"IngestedBytes\",
-       \"Dimensions\":[{\"Name\":\"Env\",\"Value\":\"$ENV\"},{\"Name\":\"Service\",\"Value\":\"checkout\"},{\"Name\":\"IngestionReason\",\"Value\":\"$R\"}],
-       \"Value\":$(( (RANDOM%40+10)*1024*1024 )),
-       \"Unit\":\"Bytes\",\"StorageResolution\":60}
-    ]"
-  done
+# Search all regions for your metric
+for R in $(aws ec2 describe-regions --query 'Regions[].RegionName' --output text); do
+  OUT=$(aws cloudwatch list-metrics --region "$R" \
+    --namespace "Custom/APM" --metric-name "IngestedBytes" --max-items 5 --output json)
+  echo "$OUT" | jq -c --arg r "$R" 'select(.Metrics|length>0) | {"region":$r,"sample":.Metrics[0]}'
 done
