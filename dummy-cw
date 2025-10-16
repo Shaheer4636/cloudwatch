@@ -1,0 +1,425 @@
+{
+  "widgets": [
+    {
+      "type": "text",
+      "x": 0,
+      "y": 0,
+      "width": 24,
+      "height": 3,
+      "properties": {
+        "markdown": "# EKS — Cluster Overview (Container Insights)\n**Cluster:** `CLUSTER_NAME`  |  **Namespace (optional filters below):** `NAMESPACE`\nTime range: set via dashboard controls. Change Region/Cluster placeholders as needed."
+      }
+    },
+
+    /* ===========================
+       CLUSTER HEALTH / INVENTORY
+       =========================== */
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 3,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Cluster Nodes (Total vs Failed)",
+        "region": "us-east-1",
+        "view": "singleValue",
+        "stacked": false,
+        "metrics": [
+          [ "ContainerInsights", "cluster_node_count", "ClusterName", "CLUSTER_NAME", { "label": "Nodes (total)", "stat": "Average" } ],
+          [ ".", "cluster_failed_node_count", ".", ".", { "label": "Nodes (failed)", "stat": "Average" } ]
+        ],
+        "period": 300,
+        "stat": "Average"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 3,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Namespaces / Services / Running Pods",
+        "region": "us-east-1",
+        "view": "singleValue",
+        "metrics": [
+          [ "ContainerInsights", "namespace_number_of_running_pods", "ClusterName", "CLUSTER_NAME", { "label": "Running Pods by Namespace (sum)", "stat": "Sum" } ],
+          [ ".", "service_number_of_running_pods", ".", ".", { "label": "Running Pods by Service (sum)", "stat": "Sum" } ]
+        ],
+        "period": 300,
+        "stat": "Sum"
+      }
+    },
+
+    /* ===========================
+       NODE UTILIZATION
+       =========================== */
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 9,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Node CPU Utilization (%) — per Node",
+        "region": "us-east-1",
+        "view": "timeSeries",
+        "stacked": false,
+        "metrics": [
+          [ "ContainerInsights", "node_cpu_utilization", "ClusterName", "CLUSTER_NAME", "NodeName", "*" ]
+        ],
+        "yAxis": { "left": { "min": 0, "max": 100 } },
+        "period": 300,
+        "stat": "Average"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 9,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Node Memory Utilization (%) — per Node",
+        "region": "us-east-1",
+        "view": "timeSeries",
+        "metrics": [
+          [ "ContainerInsights", "node_memory_utilization", "ClusterName", "CLUSTER_NAME", "NodeName", "*" ]
+        ],
+        "yAxis": { "left": { "min": 0, "max": 100 } },
+        "period": 300,
+        "stat": "Average"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 15,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Node Filesystem Utilization (%) — per Node",
+        "region": "us-east-1",
+        "view": "timeSeries",
+        "metrics": [
+          [ "ContainerInsights", "node_filesystem_utilization", "ClusterName", "CLUSTER_NAME", "NodeName", "*" ]
+        ],
+        "yAxis": { "left": { "min": 0, "max": 100 } },
+        "period": 300,
+        "stat": "Average"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 15,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Node — Running Pods (count)",
+        "region": "us-east-1",
+        "view": "timeSeries",
+        "metrics": [
+          [ "ContainerInsights", "node_number_of_running_pods", "ClusterName", "CLUSTER_NAME", "NodeName", "*" ]
+        ],
+        "period": 300,
+        "stat": "Average"
+      }
+    },
+
+    /* ===========================
+       POD UTILIZATION (NAMESPACE)
+       =========================== */
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 21,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Pod CPU Utilization (%) — per Pod (Namespace filter)",
+        "region": "us-east-1",
+        "view": "timeSeries",
+        "metrics": [
+          [ "ContainerInsights", "pod_cpu_utilization", "ClusterName", "CLUSTER_NAME", "Namespace", "NAMESPACE", "PodName", "*" ]
+        ],
+        "period": 300,
+        "stat": "Average"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 21,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Pod Memory Utilization (%) — per Pod (Namespace filter)",
+        "region": "us-east-1",
+        "view": "timeSeries",
+        "metrics": [
+          [ "ContainerInsights", "pod_memory_utilization", "ClusterName", "CLUSTER_NAME", "Namespace", "NAMESPACE", "PodName", "*" ]
+        ],
+        "yAxis": { "left": { "min": 0, "max": 100 } },
+        "period": 300,
+        "stat": "Average"
+      }
+    },
+
+    /* ===========================
+       CONTAINER UTILIZATION
+       =========================== */
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 27,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Container CPU Utilization (%) — per Pod/Container (Namespace filter)",
+        "region": "us-east-1",
+        "view": "timeSeries",
+        "metrics": [
+          [ "ContainerInsights", "container_cpu_utilization", "ClusterName", "CLUSTER_NAME", "Namespace", "NAMESPACE", "PodName", "*", "ContainerName", "*" ]
+        ],
+        "period": 300,
+        "stat": "Average"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 27,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Container Memory Utilization (%) — per Pod/Container (Namespace filter)",
+        "region": "us-east-1",
+        "view": "timeSeries",
+        "metrics": [
+          [ "ContainerInsights", "container_memory_utilization", "ClusterName", "CLUSTER_NAME", "Namespace", "NAMESPACE", "PodName", "*", "ContainerName", "*" ]
+        ],
+        "yAxis": { "left": { "min": 0, "max": 100 } },
+        "period": 300,
+        "stat": "Average"
+      }
+    },
+
+    /* ===========================
+       POD STATUS / RELIABILITY
+       =========================== */
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 33,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Pod Status — Running / Pending / Failed (sum, Namespace filter)",
+        "region": "us-east-1",
+        "view": "timeSeries",
+        "metrics": [
+          [ "ContainerInsights", "pod_status_running", "ClusterName", "CLUSTER_NAME", "Namespace", "NAMESPACE", { "label": "Running", "stat": "Sum" } ],
+          [ ".", "pod_status_pending", ".", ".", ".", ".", { "label": "Pending", "stat": "Sum" } ],
+          [ ".", "pod_status_failed", ".", ".", ".", ".", { "label": "Failed", "stat": "Sum" } ],
+          [ ".", "pod_status_unknown", ".", ".", ".", ".", { "label": "Unknown", "stat": "Sum" } ],
+          [ ".", "pod_status_succeeded", ".", ".", ".", ".", { "label": "Succeeded", "stat": "Sum" } ]
+        ],
+        "period": 300
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 33,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Pod Restarts (sum) — by Pod (Namespace filter)",
+        "region": "us-east-1",
+        "view": "timeSeries",
+        "metrics": [
+          [ "ContainerInsights", "pod_number_of_container_restarts", "ClusterName", "CLUSTER_NAME", "Namespace", "NAMESPACE", "PodName", "*" ]
+        ],
+        "period": 300,
+        "stat": "Sum"
+      }
+    },
+
+    /* ===========================
+       SERVICE LEVEL (RUNNING PODS)
+       =========================== */
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 39,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Running Pods by Service (sum, Namespace filter)",
+        "region": "us-east-1",
+        "view": "timeSeries",
+        "metrics": [
+          [ "ContainerInsights", "service_number_of_running_pods", "ClusterName", "CLUSTER_NAME", "Namespace", "NAMESPACE", "Service", "*" ]
+        ],
+        "period": 300,
+        "stat": "Sum"
+      }
+    },
+
+    /* ===========================
+       NAMESPACE INVENTORY (COUNTS)
+       =========================== */
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 39,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Running Pods by Namespace (sum, Cluster-wide)",
+        "region": "us-east-1",
+        "view": "timeSeries",
+        "metrics": [
+          [ "ContainerInsights", "namespace_number_of_running_pods", "ClusterName", "CLUSTER_NAME", "Namespace", "*" ]
+        ],
+        "period": 300,
+        "stat": "Sum"
+      }
+    },
+
+    /* ===========================
+       TOP-N — HEAT MAP STYLE
+       =========================== */
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 45,
+      "width": 12,
+      "height": 7,
+      "properties": {
+        "title": "Top Pods by CPU (%) — All Namespaces",
+        "region": "us-east-1",
+        "view": "timeSeries",
+        "stacked": true,
+        "metrics": [
+          [ "ContainerInsights", "pod_cpu_utilization", "ClusterName", "CLUSTER_NAME", "Namespace", "*", "PodName", "*" ]
+        ],
+        "legend": { "position": "bottom" },
+        "period": 300,
+        "stat": "Average"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 45,
+      "width": 12,
+      "height": 7,
+      "properties": {
+        "title": "Top Pods by Memory (%) — All Namespaces",
+        "region": "us-east-1",
+        "view": "timeSeries",
+        "stacked": true,
+        "metrics": [
+          [ "ContainerInsights", "pod_memory_utilization", "ClusterName", "CLUSTER_NAME", "Namespace", "*", "PodName", "*" ]
+        ],
+        "legend": { "position": "bottom" },
+        "period": 300,
+        "stat": "Average"
+      }
+    },
+
+    /* ===========================
+       SINGLE-VALUE KPIs
+       =========================== */
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 52,
+      "width": 8,
+      "height": 5,
+      "properties": {
+        "title": "CPU Avg (%) — Cluster",
+        "region": "us-east-1",
+        "view": "singleValue",
+        "metrics": [
+          [ "ContainerInsights", "node_cpu_utilization", "ClusterName", "CLUSTER_NAME", { "stat": "Average" } ]
+        ],
+        "period": 300
+      }
+    },
+    {
+      "type": "metric",
+      "x": 8,
+      "y": 52,
+      "width": 8,
+      "height": 5,
+      "properties": {
+        "title": "Memory Avg (%) — Cluster",
+        "region": "us-east-1",
+        "view": "singleValue",
+        "metrics": [
+          [ "ContainerInsights", "node_memory_utilization", "ClusterName", "CLUSTER_NAME", { "stat": "Average" } ]
+        ],
+        "period": 300
+      }
+    },
+    {
+      "type": "metric",
+      "x": 16,
+      "y": 52,
+      "width": 8,
+      "height": 5,
+      "properties": {
+        "title": "Failed Nodes (count)",
+        "region": "us-east-1",
+        "view": "singleValue",
+        "metrics": [
+          [ "ContainerInsights", "cluster_failed_node_count", "ClusterName", "CLUSTER_NAME", { "stat": "Average" } ]
+        ],
+        "period": 300
+      }
+    },
+
+    /* ===========================
+       OPTIONAL: PER-NAMESPACE QUICK VIEWS
+       =========================== */
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 57,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Namespace — Avg CPU/Memory (%)",
+        "region": "us-east-1",
+        "view": "timeSeries",
+        "metrics": [
+          [ "ContainerInsights", "pod_cpu_utilization", "ClusterName", "CLUSTER_NAME", "Namespace", "NAMESPACE", { "label": "CPU %", "stat": "Average" } ],
+          [ ".", "pod_memory_utilization", ".", ".", ".", ".", { "label": "Mem %", "stat": "Average" } ]
+        ],
+        "yAxis": { "left": { "min": 0, "max": 100 } },
+        "period": 300
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 57,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Namespace — Pod Restarts (sum)",
+        "region": "us-east-1",
+        "view": "timeSeries",
+        "metrics": [
+          [ "ContainerInsights", "pod_number_of_container_restarts", "ClusterName", "CLUSTER_NAME", "Namespace", "NAMESPACE", "PodName", "*" ]
+        ],
+        "period": 300,
+        "stat": "Sum"
+      }
+    }
+  ]
+}
