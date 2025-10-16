@@ -1,3 +1,13 @@
+# Make a cleaned copy (remove /* ... */ comment blocks)
+sed -E '/^\s*\/\*/,/^\s*\*\//d' apm_ingestion_dashboard.json > apm_ingestion_dashboard.clean.json
+
+# Also remove any trailing commas before ] or }
+sed -E -i 's/,(\s*[\]}])/\1/g' apm_ingestion_dashboard.clean.json
+
+# Validate JSON (must print OK)
+jq . apm_ingestion_dashboard.clean.json >/dev/null && echo "JSON OK"
+
+# Apply to CloudWatch
 aws cloudwatch put-dashboard \
   --dashboard-name "APM-Ingestion-Reasons-Overview" \
-  --dashboard-body file://apm_ingestion_dashboard.json
+  --dashboard-body file://apm_ingestion_dashboard.clean.json
