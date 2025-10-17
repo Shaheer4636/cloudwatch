@@ -1,12 +1,20 @@
-# Use a valid name (no spaces)
+# 1) Inspect what your shell has
+echo "REGION='$REGION'"
+aws configure get region || true
+
+# 2) Force the region everywhere (CLI checks multiple vars)
+export REGION=us-east-1
+export AWS_REGION=$REGION
+export AWS_DEFAULT_REGION=$REGION
+
+# 3) Make sure no custom endpoint vars are breaking CloudWatch
+unset AWS_ENDPOINT_URL AWS_CLOUDWATCH_ENDPOINT AWS_MONITORING_ENDPOINT
+
+# 4) Use a valid dashboard name (no spaces)
 export DASHBOARD_NAME="Strata-uat-eks-OwJIPjnj-cloudwatch"
 
-# Create/update the dashboard with the JSON you already generated
+
 aws cloudwatch put-dashboard \
-  --region "$REGION" \
+  --region us-east-1 \
   --dashboard-name "$DASHBOARD_NAME" \
   --dashboard-body file://dashboard.json
-
-
-aws cloudwatch list-dashboards --region "$REGION" \
-  --query "DashboardEntries[?DashboardName=='$DASHBOARD_NAME']"
