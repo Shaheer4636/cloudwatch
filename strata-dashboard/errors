@@ -1,0 +1,14 @@
+bash-5.2# sed -i "s/REGION/$REGION/g" dashboard.json
+bash-5.2# sed -i "s/CLUSTER/$CLUSTER/g" dashboard.json
+bash-5.2# sed -i "s/PERIOD/$PERIOD/g" dashboard.json
+bash-5.2# 
+bash-5.2# echo "Creating/Updating dashboard..."
+Creating/Updating dashboard...
+bash-5.2# aws cloudwatch put-dashboard \
+>   --region "$REGION" \
+>   --dashboard-name "$DASHBOARD_NAME" \
+>   --dashboard-body file://dashboard.json
+
+An error occurred (InvalidParameterValue) when calling the PutDashboard operation: The value for field DashboardName contains invalid characters. It can only contain alphanumerics, dash (-) and underscore (_).
+
+bash-5.2# 
