@@ -1,127 +1,183 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# ---------------- CONFIG YOU MAY CHANGE ----------------
 NAMESPACE="APM/TraceIngestion"
 ENV_DIM="nonprod"
 SERVICE_DIM="checkout"
+LOG_GROUP="/aws/apm/TraceIngestion"
+DASHBOARD_NAME="APM-Trace-Ingestion"
+# -------------------------------------------------------
 
-# 1) Find the region that actually has your custom metrics
-echo "[1/4] Scanning regions for $NAMESPACE/IngestedBytes ..."
-HOME_REGION=""
+echo "==[0] Identity & default region =="
+aws sts get-caller-identity
+DEF_REGION="$(aws configure get region || true)"
+if [ -z "${DEF_REGION:-}" ]; then DEF_REGION="${AWS_REGION:-us-east-1}"; fi
+echo "Default region: $DEF_REGION"
+
+# Try this region first, but we'll scan if needed
+REGION="$DEF_REGION"
+
+echo "==[1] Ensure Log Group/Stream and emit EMF =="
+STREAM="seed-$(date -u +%Y%m%dT%H%M%SZ)"
+aws logs create-log-group --region "$REGION" --log-group-name "$LOG_GROUP" 2>/dev/null || true
+aws logs create-log-stream --region "$REGION" --log-group-name "$LOG_GROUP" --log-stream-name "$STREAM" 2>/dev/null || true
+
+EMF_TS_MS=$(($(date -u +%s)*1000))
+cat > emf_event.json <<EOF
+{
+  "_aws": {
+    "Timestamp": ${EMF_TS_MS},
+    "CloudWatchMetrics": [{
+      "Namespace": "${NAMESPACE}",
+      "Dimensions": [["Env","Service","IngestionReason"]],
+      "Metrics": [
+        {"Name":"IngestedBytes","Unit":"Bytes"},
+        {"Name":"IngestedSpans","Unit":"Count"}
+      ]
+    }]
+  },
+  "Env": "${ENV_DIM}",
+  "Service": "${SERVICE_DIM}",
+  "IngestionReason": "auto",
+  "IngestedBytes": 120000,
+  "IngestedSpans": 900
+}
+EOF
+
+SEQ=$(aws logs describe-log-streams --region "$REGION" --log-group-name "$LOG_GROUP" --log-stream-name-prefix "$STREAM" --query "logStreams[0].uploadSequenceToken" --output text 2>/dev/null || true)
+PAYLOAD=$(jq -n --arg msg "$(jq -Rs . < emf_event.json)" --arg ts "$(($(date -u +%s)*1000))" '[{timestamp:($ts|tonumber), message:($msg|fromjson|tojson)}]')
+if [ "$SEQ" = "None" ] || [ -z "${SEQ:-}" ]; then
+  aws logs put-log-events --region "$REGION" --log-group-name "$LOG_GROUP" --log-stream-name "$STREAM" --log-events "$PAYLOAD" >/dev/null
+else
+  aws logs put-log-events --region "$REGION" --log-group-name "$LOG_GROUP" --log-stream-name "$STREAM" --sequence-token "$SEQ" --log-events "$PAYLOAD" >/dev/null
+fi
+echo "EMF log event sent."
+
+echo "==[2] Seed metric data over last 30 minutes on 5-min boundaries =="
+now=$(date -u +%s); align=$(( (now/300)*300 ))
+t0=$((align-1500)); t1=$((align-1200)); t2=$((align-900)); t3=$((align-600)); t4=$((align-300)); t5=$align
+ts() { date -u -d "@$1" +%Y-%m-%dT%H:%M:%SZ; }
+
+cat > metric_seed.json <<EOF
+[
+  { "MetricName":"IngestedBytes","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"auto"}],"Timestamp":"$(ts $t0)","Value":120000,"Unit":"Bytes","StorageResolution":60 },
+  { "MetricName":"IngestedBytes","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"auto"}],"Timestamp":"$(ts $t1)","Value":130000,"Unit":"Bytes","StorageResolution":60 },
+  { "MetricName":"IngestedBytes","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"auto"}],"Timestamp":"$(ts $t2)","Value":125000,"Unit":"Bytes","StorageResolution":60 },
+  { "MetricName":"IngestedBytes","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"auto"}],"Timestamp":"$(ts $t3)","Value":128000,"Unit":"Bytes","StorageResolution":60 },
+  { "MetricName":"IngestedBytes","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"auto"}],"Timestamp":"$(ts $t4)","Value":126000,"Unit":"Bytes","StorageResolution":60 },
+  { "MetricName":"IngestedBytes","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"auto"}],"Timestamp":"$(ts $t5)","Value":127000,"Unit":"Bytes","StorageResolution":60 },
+
+  { "MetricName":"IngestedBytes","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"rule"}],"Timestamp":"$(ts $t0)","Value":25000,"Unit":"Bytes","StorageResolution":60 },
+  { "MetricName":"IngestedBytes","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"rule"}],"Timestamp":"$(ts $t2)","Value":24000,"Unit":"Bytes","StorageResolution":60 },
+  { "MetricName":"IngestedBytes","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"rule"}],"Timestamp":"$(ts $t4)","Value":25500,"Unit":"Bytes","StorageResolution":60 },
+
+  { "MetricName":"IngestedBytes","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"error"}],"Timestamp":"$(ts $t3)","Value":10000,"Unit":"Bytes","StorageResolution":60 },
+  { "MetricName":"IngestedBytes","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"rare"}],"Timestamp":"$(ts $t3)","Value":5500,"Unit":"Bytes","StorageResolution":60 },
+
+  { "MetricName":"IngestedSpans","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"auto"}],"Timestamp":"$(ts $t5)","Value":900,"Unit":"Count","StorageResolution":60 },
+  { "MetricName":"IngestedSpans","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"rule"}],"Timestamp":"$(ts $t5)","Value":100,"Unit":"Count","StorageResolution":60 }
+]
+EOF
+
+aws cloudwatch put-metric-data --region "$REGION" --namespace "$NAMESPACE" --metric-data file://metric_seed.json
+echo "Seeded metric points."
+
+echo "==[3] Find the region that actually has your time series =="
+FOUND_REGION=""
 for r in $(aws ec2 describe-regions --query 'Regions[].RegionName' --output text); do
-  cnt=$(aws cloudwatch list-metrics \
-    --region "$r" \
-    --namespace "$NAMESPACE" \
-    --metric-name "IngestedBytes" \
-    --query 'length(Metrics)' --output text 2>/dev/null || echo 0)
-  if [ "$cnt" != "0" ]; then
-    HOME_REGION="$r"
-    echo "  -> Found metrics in region: $HOME_REGION (series: $cnt)"
-    break
-  fi
+  n=$(aws cloudwatch list-metrics --region "$r" --namespace "$NAMESPACE" --metric-name "IngestedBytes" --query 'length(Metrics)' --output text 2>/dev/null || echo 0)
+  if [ "$n" != "0" ]; then FOUND_REGION="$r"; break; fi
 done
-if [ -z "$HOME_REGION" ]; then
-  echo "No metrics found in any region. Seed metrics first, then rerun."
+if [ -z "$FOUND_REGION" ]; then
+  echo "No metrics found in any region. That means PutMetricData didn’t land (account/region mismatch)."
   exit 1
 fi
+echo "Metrics exist in region: $FOUND_REGION"
 
-# 2) Recreate dashboard with widgets pinned to the region that has data
-echo "[2/4] Publishing dashboard to region $HOME_REGION ..."
-aws cloudwatch put-dashboard \
-  --region "$HOME_REGION" \
-  --dashboard-name "APM-Trace-Ingestion" \
-  --dashboard-body "$(cat <<JSON
+echo "==[4] Republish Dashboard pinned to $FOUND_REGION =="
+aws cloudwatch put-dashboard --region "$FOUND_REGION" --dashboard-name "$DASHBOARD_NAME" --dashboard-body "$(cat <<JSON
 {
   "widgets": [
     {
-      "type": "metric","x":0,"y":0,"width":12,"height":6,
-      "properties": {
-        "title": "Ingested bytes by reason over time (stacked)",
-        "region": "$HOME_REGION","stat":"Sum","period":300,"stacked":true,"view":"timeSeries",
-        "yAxis":{"left":{"label":"Bytes"}},
-        "metrics": [
-          [ "$NAMESPACE","IngestedBytes","Env","*","Service","*","IngestionReason","auto",{"id":"m_auto"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","rule",{"id":"m_rule"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","manual",{"id":"m_manual"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","error",{"id":"m_error"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","rare",{"id":"m_rare"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","analytics",{"id":"m_analytics"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","synthetics",{"id":"m_synth"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","synthetics-browser",{"id":"m_synthbrowser"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","rum",{"id":"m_rum"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","xray",{"id":"m_xray"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","lambda",{"id":"m_lambda"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","appsec",{"id":"m_appsec"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","unknown",{"id":"m_unknown"} ]
+      "type":"metric","x":0,"y":0,"width":12,"height":6,
+      "properties":{"title":"Ingested bytes by reason over time (stacked)","region":"$FOUND_REGION","stat":"Sum","period":300,"stacked":true,"view":"timeSeries","yAxis":{"left":{"label":"Bytes"}},
+        "metrics":[
+          ["$NAMESPACE","IngestedBytes","Env","*","Service","*","IngestionReason","auto",{"id":"m_auto"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","rule",{"id":"m_rule"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","manual",{"id":"m_manual"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","error",{"id":"m_error"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","rare",{"id":"m_rare"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","analytics",{"id":"m_analytics"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","synthetics",{"id":"m_synth"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","synthetics-browser",{"id":"m_synthbrowser"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","rum",{"id":"m_rum"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","xray",{"id":"m_xray"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","lambda",{"id":"m_lambda"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","appsec",{"id":"m_appsec"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","unknown",{"id":"m_unknown"}]
         ]
       }
     },
     {
       "type":"metric","x":0,"y":6,"width":6,"height":4,
-      "properties":{
-        "title":"Head-based (auto + rule) - bytes and % of total",
-        "region":"$HOME_REGION","stat":"Sum","period":300,"view":"singleValue",
+      "properties":{"title":"Head-based (auto + rule) - bytes and % of total","region":"$FOUND_REGION","stat":"Sum","period":300,"view":"singleValue",
         "metrics":[
-          [ { "expression":"m_auto + m_rule","label":"HeadBasedBytes","id":"e_head_bytes" } ],
-          [ { "expression":"(m_auto + m_rule) / (m_auto + m_rule + m_manual + m_error + m_rare + m_analytics + m_synth + m_synthbrowser + m_rum + m_xray + m_lambda + m_appsec + m_unknown) * 100","label":"HeadBased % of total","id":"e_head_pct" } ],
-          [ "$NAMESPACE","IngestedBytes","Env","*","Service","*","IngestionReason","auto",{"visible":false,"id":"m_auto"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","rule",{"visible":false,"id":"m_rule"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","manual",{"visible":false,"id":"m_manual"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","error",{"visible":false,"id":"m_error"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","rare",{"visible":false,"id":"m_rare"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","analytics",{"visible":false,"id":"m_analytics"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","synthetics",{"visible":false,"id":"m_synth"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","synthetics-browser",{"visible":false,"id":"m_synthbrowser"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","rum",{"visible":false,"id":"m_rum"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","xray",{"visible":false,"id":"m_xray"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","lambda",{"visible":false,"id":"m_lambda"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","appsec",{"visible":false,"id":"m_appsec"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","unknown",{"visible":false,"id":"m_unknown"} ]
+          [{"expression":"m_auto + m_rule","label":"HeadBasedBytes","id":"e_head_bytes"}],
+          [{"expression":"(m_auto + m_rule) / (m_auto + m_rule + m_manual + m_error + m_rare + m_analytics + m_synth + m_synthbrowser + m_rum + m_xray + m_lambda + m_appsec + m_unknown) * 100","label":"HeadBased % of total","id":"e_head_pct"}],
+          ["$NAMESPACE","IngestedBytes","Env","*","Service","*","IngestionReason","auto",{"visible":false,"id":"m_auto"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","rule",{"visible":false,"id":"m_rule"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","manual",{"visible":false,"id":"m_manual"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","error",{"visible":false,"id":"m_error"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","rare",{"visible":false,"id":"m_rare"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","analytics",{"visible":false,"id":"m_analytics"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","synthetics",{"visible":false,"id":"m_synth"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","synthetics-browser",{"visible":false,"id":"m_synthbrowser"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","rum",{"visible":false,"id":"m_rum"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","xray",{"visible":false,"id":"m_xray"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","lambda",{"visible":false,"id":"m_lambda"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","appsec",{"visible":false,"id":"m_appsec"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","unknown",{"visible":false,"id":"m_unknown"}]
         ]
       }
     },
     {
       "type":"metric","x":6,"y":6,"width":6,"height":4,
-      "properties":{
-        "title":"Current totals by ingestion reason (bytes)",
-        "region":"$HOME_REGION","stat":"Sum","period":300,"view":"singleValue",
+      "properties":{"title":"Current totals by ingestion reason (bytes)","region":"$FOUND_REGION","stat":"Sum","period":300,"view":"singleValue",
         "metrics":[
-          [ "$NAMESPACE","IngestedBytes","Env","*","Service","*","IngestionReason","auto",{"label":"auto"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","rule",{"label":"rule"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","error",{"label":"error"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","rare",{"label":"rare"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","synthetics",{"label":"synthetics"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","synthetics-browser",{"label":"synthetics-browser"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","rum",{"label":"rum"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","lambda",{"label":"lambda"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","xray",{"label":"xray"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","analytics",{"label":"analytics"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","manual",{"label":"manual"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","appsec",{"label":"appsec"} ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","unknown",{"label":"unknown"} ]
+          ["$NAMESPACE","IngestedBytes","Env","*","Service","*","IngestionReason","auto",{"label":"auto"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","rule",{"label":"rule"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","error",{"label":"error"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","rare",{"label":"rare"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","synthetics",{"label":"synthetics"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","synthetics-browser",{"label":"synthetics-browser"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","rum",{"label":"rum"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","lambda",{"label":"lambda"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","xray",{"label":"xray"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","analytics",{"label":"analytics"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","manual",{"label":"manual"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","appsec",{"label":"appsec"}],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","unknown",{"label":"unknown"}]
         ]
       }
     },
     {
       "type":"metric","x":0,"y":10,"width":12,"height":6,
-      "properties":{
-        "title":"Ingested bytes by reason (bars)",
-        "region":"$HOME_REGION","stat":"Sum","period":300,"view":"bar",
-        "yAxis":{"left":{"label":"Bytes"}},
+      "properties":{"title":"Ingested bytes by reason (bars)","region":"$FOUND_REGION","stat":"Sum","period":300,"view":"bar","yAxis":{"left":{"label":"Bytes"}},
         "metrics":[
-          [ "$NAMESPACE","IngestedBytes","Env","*","Service","*","IngestionReason","auto" ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","rule" ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","manual" ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","error" ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","rare" ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","analytics" ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","synthetics" ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","synthetics-browser" ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","rum" ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","lambda" ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","xray" ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","appsec" ],
-          [ ".","IngestedBytes",".","*",".","*","IngestionReason","unknown" ]
+          ["$NAMESPACE","IngestedBytes","Env","*","Service","*","IngestionReason","auto"],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","rule"],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","manual"],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","error"],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","rare"],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","analytics"],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","synthetics"],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","synthetics-browser"],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","rum"],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","lambda"],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","xray"],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","appsec"],
+          [".","IngestedBytes",".","*",".","*","IngestionReason","unknown"]
         ]
       }
     }
@@ -130,8 +186,7 @@ aws cloudwatch put-dashboard \
 JSON
 )"
 
-# 3) Query the same region with MetricStat objects (no SEARCH, no quoting pain)
-echo "[3/4] Verifying data via GetMetricData ..."
+echo "==[5] Verify with MetricStat queries =="
 START=$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)
 END=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 cat > queries.json <<JSON
@@ -139,15 +194,10 @@ cat > queries.json <<JSON
   {"Id":"auto","Label":"auto","MetricStat":{"Metric":{"Namespace":"$NAMESPACE","MetricName":"IngestedBytes","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"auto"}]},"Period":300,"Stat":"Sum"}},
   {"Id":"rule","Label":"rule","MetricStat":{"Metric":{"Namespace":"$NAMESPACE","MetricName":"IngestedBytes","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"rule"}]},"Period":300,"Stat":"Sum"}},
   {"Id":"total","Label":"total","Expression":"auto + rule"},
-  {"Id":"pct","Label":"head %","Expression":"100 * total / MAX([auto + rule])"}
+  {"Id":"pct","Label":"head %","Expression":"100 * (auto + rule) / MAX([auto + rule])"}
 ]
 JSON
 
-aws cloudwatch get-metric-data \
-  --region "$HOME_REGION" \
-  --start-time "$START" \
-  --end-time "$END" \
-  --metric-data-queries file://queries.json
+aws cloudwatch get-metric-data --region "$FOUND_REGION" --start-time "$START" --end-time "$END" --metric-data-queries file://queries.json
 
-# 4) Reminder to set console region
-echo "[4/4] Open CloudWatch console, set REGION (top-right) to: $HOME_REGION, then open Dashboard: APM-Trace-Ingestion"
+echo "==[6] Open the CloudWatch console, switch region (top-right) to $FOUND_REGION, then open Dashboard: $DASHBOARD_NAME =="
