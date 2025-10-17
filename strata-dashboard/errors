@@ -1,20 +1,12 @@
-# 1) Inspect what your shell has
-echo "REGION='$REGION'"
-aws configure get region || true
+bash-5.2# 
+bash-5.2# # 4) Use a valid dashboard name (no spaces)
+bash-5.2# export DASHBOARD_NAME="Strata-uat-eks-OwJIPjnj-cloudwatch"
+bash-5.2# 
+bash-5.2# 
+bash-5.2# aws cloudwatch put-dashboard \
+>   --region us-east-1 \
+>   --dashboard-name "$DASHBOARD_NAME" \
+>   --dashboard-body file://dashboard.json
 
-# 2) Force the region everywhere (CLI checks multiple vars)
-export REGION=us-east-1
-export AWS_REGION=$REGION
-export AWS_DEFAULT_REGION=$REGION
-
-# 3) Make sure no custom endpoint vars are breaking CloudWatch
-unset AWS_ENDPOINT_URL AWS_CLOUDWATCH_ENDPOINT AWS_MONITORING_ENDPOINT
-
-# 4) Use a valid dashboard name (no spaces)
-export DASHBOARD_NAME="Strata-uat-eks-OwJIPjnj-cloudwatch"
-
-
-aws cloudwatch put-dashboard \
-  --region us-east-1 \
-  --dashboard-name "$DASHBOARD_NAME" \
-  --dashboard-body file://dashboard.json
+An error occurred (InvalidParameterInput) when calling the PutDashboard operation: The field DashboardBody must be a valid JSON object
+bash-5.2# 
