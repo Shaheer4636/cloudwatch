@@ -1,26 +1,33 @@
-bash-5.2# echo "Querying recent datapoints (last 1 hour)..."
-Querying recent datapoints (last 1 hour)...
-bash-5.2# aws cloudwatch get-metric-data \
->   --region "$REGION" \
->   --start-time "$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)" \
->   --end-time   "$(date -u                +%Y-%m-%dT%H:%M:%SZ)" \
->   --metric-data-queries '[
->     {
->       "Id":"totalbytes",
->       "Expression":"SUM(SEARCH(\"{APM/TraceIngestion,IngestedBytes}\", \"Sum\", 300))",
->       "Label":"Total IngestedBytes (all reasons)"
->     },
->     {
->       "Id":"headbytes",
->       "Expression":"SUM(SEARCH(\"{APM/TraceIngestion,IngestedBytes,IngestionReason=auto|rule}\", \"Sum\", 300))",
->       "Label":"Head-based (auto+rule)"
->     },
->     {
->       "Id":"headpct",
->       "Expression":"100 * headbytes / MAX([totalbytes])",
->       "Label":"Head-based % of total"
->     }
->   ]'
+REGION=us-east-1
 
-An error occurred (ValidationError) when calling the GetMetricData operation: Invalid SEARCH parameter: {APM/TraceIngestion,IngestedBytes,IngestionReason=auto|rule}
-~ $ 
+aws cloudwatch get-metric-data \
+  --region "$REGION" \
+  --start-time "$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)" \
+  --end-time   "$(date -u                +%Y-%m-%dT%H:%M:%SZ)" \
+  --metric-data-queries '[
+    {
+      "Id":"totalbytes",
+      "Expression":"SUM(SEARCH(\'{APM/TraceIngestion,IngestedBytes}\', \'Sum\', 300))",
+      "Label":"Total IngestedBytes (all reasons)"
+    },
+    {
+      "Id":"auto_only",
+      "Expression":"SUM(SEARCH(\'{APM/TraceIngestion,IngestedBytes,IngestionReason=\"auto\"}\', \'Sum\', 300))",
+      "Label":"auto"
+    },
+    {
+      "Id":"rule_only",
+      "Expression":"SUM(SEARCH(\'{APM/TraceIngestion,IngestedBytes,IngestionReason=\"rule\"}\', \'Sum\', 300))",
+      "Label":"rule"
+    },
+    {
+      "Id":"headbytes",
+      "Expression":"auto_only + rule_only",
+      "Label":"Head-based (auto+rule)"
+    },
+    {
+      "Id":"headpct",
+      "Expression":"100 * headbytes / MAX([totalbytes])",
+      "Label":"Head-based % of total"
+    }
+  ]'
