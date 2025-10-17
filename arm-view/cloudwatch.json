@@ -2,20 +2,17 @@
 set -euo pipefail
 
 # ==========================
-# Config (edit if needed)
+# Config
 # ==========================
 REGION="us-east-1"
 DASH="APM-Trace-Ingestion"
 
 NAMESPACE="APM/TraceIngestion"
-ENV_DIM="nonprod"
+ENV_DIM="nonprod"     # change if you want
 SERVICE_DIM="checkout"
 
-# Full set of Datadog ingestion reasons you showed
 REASONS=("auto" "rule" "manual" "error" "rare" "analytics" "synthetics" "synthetics-browser" "rum" "lambda" "xray" "appsec" "unknown")
 
-# Sample values to seed data (edit to your reality later)
-# We'll make auto+rule dominant to match head-based focus
 declare -A BYTES=(
   [auto]=125000 [rule]=25000  [manual]=300   [error]=10000  [rare]=5500
   [analytics]=100 [synthetics]=2000 [synthetics-browser]=900
@@ -33,14 +30,14 @@ declare -A SPANS=(
 LOG_GROUP="/aws/apm/TraceIngestion"
 LOG_STREAM="seed-$(date -u +%Y%m%dT%H%M%SZ)"
 
-echo "Creating log group and stream (ok if they already exist)..."
+echo "[1/5] Creating log group and stream..."
 aws logs create-log-group --region "$REGION" --log-group-name "$LOG_GROUP" 2>/dev/null || true
 aws logs create-log-stream --region "$REGION" --log-group-name "$LOG_GROUP" --log-stream-name "$LOG_STREAM" 2>/dev/null || true
 
 # ==========================
-# 2) Emit one EMF event (CloudWatch extracts metrics from Logs)
+# 2) Emit one EMF event (correctly escaped)
 # ==========================
-# Build one EMF event for 'auto' as an example (you can repeat per reason if you want)
+echo "[2/5] Emitting EMF event via CloudWatch Logs..."
 EMF_TS_MS=$(($(date -u +%s)*1000))
 cat > emf_event.json <<EOF
 {
@@ -63,21 +60,38 @@ cat > emf_event.json <<EOF
 }
 EOF
 
-echo "Putting one EMF log event (auto)..."
-aws logs put-log-events \
+# Get sequence token (if any)
+SEQ_TOKEN=$(aws logs describe-log-streams \
   --region "$REGION" \
   --log-group-name "$LOG_GROUP" \
-  --log-stream-name "$LOG_STREAM" \
-  --log-events "timestamp=$(date -u +%s000),message=$(cat emf_event.json | tr -d '\n')"
+  --log-stream-name-prefix "$LOG_STREAM" \
+  --query "logStreams[0].uploadSequenceToken" \
+  --output text 2>/dev/null || true)
 
-# Note: EMF -> metric extraction is asynchronous.
-# To ensure the dashboard shows data immediately, also push the same data via PutMetricData.
+# Build properly escaped log events payload: [{"timestamp":..., "message":"<escaped json>"}]
+# jq -Rs . turns the EMF file into a valid JSON string
+EVENTS_JSON=$(jq -n --arg msg "$(jq -Rs . < emf_event.json)" --arg ts "$(($(date -u +%s)*1000))" \
+  '[{timestamp: ($ts|tonumber), message: ($msg|fromjson|tojson)}]')
+
+if [ "${SEQ_TOKEN:-None}" = "None" ]; then
+  aws logs put-log-events \
+    --region "$REGION" \
+    --log-group-name "$LOG_GROUP" \
+    --log-stream-name "$LOG_STREAM" \
+    --log-events "${EVENTS_JSON}"
+else
+  aws logs put-log-events \
+    --region "$REGION" \
+    --log-group-name "$LOG_GROUP" \
+    --log-stream-name "$LOG_STREAM" \
+    --sequence-token "$SEQ_TOKEN" \
+    --log-events "${EVENTS_JSON}"
+fi
 
 # ==========================
 # 3) Seed metrics directly (immediate visibility)
 # ==========================
-echo "Seeding metrics directly via PutMetricData..."
-# Build a big JSON array for --metric-data
+echo "[3/5] Seeding metrics via PutMetricData..."
 MD_FILE="metric_data.json"
 echo "[" > "$MD_FILE"
 FIRST=1
@@ -127,7 +141,7 @@ aws cloudwatch put-metric-data \
 # ==========================
 # 4) Create/Update the Dashboard (inline JSON)
 # ==========================
-echo "Creating/Updating dashboard ${DASH}..."
+echo "[4/5] Creating/Updating dashboard ${DASH}..."
 aws cloudwatch put-dashboard \
   --region "$REGION" \
   --dashboard-name "$DASH" \
@@ -251,7 +265,7 @@ JSON
 # ==========================
 # 5) Verify
 # ==========================
-echo "Listing metrics in ${NAMESPACE}..."
+echo "[5/5] Listing metrics in ${NAMESPACE}..."
 aws cloudwatch list-metrics --region "$REGION" --namespace "$NAMESPACE" || true
 
 echo "Querying recent datapoints (last 1 hour)..."
@@ -277,4 +291,4 @@ aws cloudwatch get-metric-data \
     }
   ]'
 
-echo "Done. Open the CloudWatch console → Dashboards → ${DASH}."
+echo "Done. Open CloudWatch console → Dashboards → ${DASH}."
