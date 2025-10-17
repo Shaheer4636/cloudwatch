@@ -1,33 +1,56 @@
-REGION=us-east-1
+#!/usr/bin/env bash
+set -euo pipefail
 
+# -------- config --------
+REGION="us-east-1"
+NAMESPACE="APM/TraceIngestion"
+ENV_DIM="nonprod"
+SERVICE_DIM="checkout"
+
+# 6 points at 5-minute steps covering the last 30 minutes, aligned to :00
+now=$(date -u +%s)
+align=$(( (now/300)*300 ))                       # nearest 5-min boundary
+t0=$((align-1500)) ; t1=$((align-1200)) ; t2=$((align-900))
+t3=$((align-600))  ; t4=$((align-300))  ; t5=$align
+
+ts_fmt() { date -u -d "@$1" +%Y-%m-%dT%H:%M:%SZ ; }
+
+# Build metric-data with multiple timestamps for AUTO and RULE (dominant), plus a few others
+cat > metric_seed.json <<EOF
+[
+  { "MetricName":"IngestedBytes","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"auto"}],"Timestamp":"$(ts_fmt $t0)","Value":120000,"Unit":"Bytes","StorageResolution":60 },
+  { "MetricName":"IngestedBytes","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"auto"}],"Timestamp":"$(ts_fmt $t1)","Value":130000,"Unit":"Bytes","StorageResolution":60 },
+  { "MetricName":"IngestedBytes","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"auto"}],"Timestamp":"$(ts_fmt $t2)","Value":125000,"Unit":"Bytes","StorageResolution":60 },
+  { "MetricName":"IngestedBytes","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"auto"}],"Timestamp":"$(ts_fmt $t3)","Value":128000,"Unit":"Bytes","StorageResolution":60 },
+  { "MetricName":"IngestedBytes","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"auto"}],"Timestamp":"$(ts_fmt $t4)","Value":126000,"Unit":"Bytes","StorageResolution":60 },
+  { "MetricName":"IngestedBytes","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"auto"}],"Timestamp":"$(ts_fmt $t5)","Value":127000,"Unit":"Bytes","StorageResolution":60 },
+
+  { "MetricName":"IngestedBytes","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"rule"}],"Timestamp":"$(ts_fmt $t0)","Value":25000,"Unit":"Bytes","StorageResolution":60 },
+  { "MetricName":"IngestedBytes","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"rule"}],"Timestamp":"$(ts_fmt $t2)","Value":24000,"Unit":"Bytes","StorageResolution":60 },
+  { "MetricName":"IngestedBytes","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"rule"}],"Timestamp":"$(ts_fmt $t4)","Value":25500,"Unit":"Bytes","StorageResolution":60 },
+
+  { "MetricName":"IngestedBytes","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"error"}],"Timestamp":"$(ts_fmt $t3)","Value":10000,"Unit":"Bytes","StorageResolution":60 },
+  { "MetricName":"IngestedBytes","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"rare"}],"Timestamp":"$(ts_fmt $t3)","Value":5500,"Unit":"Bytes","StorageResolution":60 },
+
+  { "MetricName":"IngestedSpans","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"auto"}],"Timestamp":"$(ts_fmt $t5)","Value":900,"Unit":"Count","StorageResolution":60 },
+  { "MetricName":"IngestedSpans","Dimensions":[{"Name":"Env","Value":"$ENV_DIM"},{"Name":"Service","Value":"$SERVICE_DIM"},{"Name":"IngestionReason","Value":"rule"}],"Timestamp":"$(ts_fmt $t5)","Value":100,"Unit":"Count","StorageResolution":60 }
+]
+EOF
+
+aws cloudwatch put-metric-data --region "$REGION" --namespace "$NAMESPACE" --metric-data file://metric_seed.json
+
+# Verify series exist
+aws cloudwatch list-metrics --region "$REGION" --namespace "$NAMESPACE" --metric-name IngestedBytes
+
+# Quick query (scoped to your env/service)
 aws cloudwatch get-metric-data \
   --region "$REGION" \
-  --start-time "$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)" \
-  --end-time   "$(date -u                +%Y-%m-%dT%H:%M:%SZ)" \
+  --start-time "$(ts_fmt $t0)" \
+  --end-time   "$(ts_fmt $t5)" \
   --metric-data-queries '[
-    {
-      "Id":"totalbytes",
-      "Expression":"SUM(SEARCH(\'{APM/TraceIngestion,IngestedBytes}\', \'Sum\', 300))",
-      "Label":"Total IngestedBytes (all reasons)"
-    },
-    {
-      "Id":"auto_only",
-      "Expression":"SUM(SEARCH(\'{APM/TraceIngestion,IngestedBytes,IngestionReason=\"auto\"}\', \'Sum\', 300))",
-      "Label":"auto"
-    },
-    {
-      "Id":"rule_only",
-      "Expression":"SUM(SEARCH(\'{APM/TraceIngestion,IngestedBytes,IngestionReason=\"rule\"}\', \'Sum\', 300))",
-      "Label":"rule"
-    },
-    {
-      "Id":"headbytes",
-      "Expression":"auto_only + rule_only",
-      "Label":"Head-based (auto+rule)"
-    },
-    {
-      "Id":"headpct",
-      "Expression":"100 * headbytes / MAX([totalbytes])",
-      "Label":"Head-based % of total"
-    }
+    {"Id":"total","Expression":"SUM(SEARCH('{APM/TraceIngestion,IngestedBytes,Env=\"'"$ENV_DIM"'\",Service=\"'"$SERVICE_DIM"'\"}', 'Sum', 300))","Label":"total"},
+    {"Id":"auto","Expression":"SUM(SEARCH('{APM/TraceIngestion,IngestedBytes,Env=\"'"$ENV_DIM"'\",Service=\"'"$SERVICE_DIM"'\",IngestionReason=\"auto\"}', 'Sum', 300))","Label":"auto"},
+    {"Id":"rule","Expression":"SUM(SEARCH('{APM/TraceIngestion,IngestedBytes,Env=\"'"$ENV_DIM"'\",Service=\"'"$SERVICE_DIM"'\",IngestionReason=\"rule\"}', 'Sum', 300))","Label":"rule"},
+    {"Id":"head","Expression":"auto + rule","Label":"headbased"},
+    {"Id":"pct","Expression":"100 * head / MAX([total])","Label":"head %"}
   ]'
