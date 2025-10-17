@@ -1,181 +1,750 @@
-# ===== paste everything from here into CloudShell =====
-cat > setup_apm_dashboard.sh <<'BASH'
-#!/usr/bin/env bash
-set -euo pipefail
-
-# ---------------------------
-# CONFIG (edit if you need to)
-# ---------------------------
-DASH_NAME="APM-Traces-Ingestion-Reasons-Overview"
-NS="Custom/APM"
-METRIC="IngestedBytes"
-# If your env names differ, change here:
-ENV_LIST=("idev" "uat")
-# We wild-card Service=* in the dashboard; use these only when seeding data:
-SERVICE_FOR_SEED="checkout"
-# Set to "true" to seed a tiny sample if the metric doesn't exist anywhere
-SEED_IF_ABSENT="true"
-
-# Ingestion reasons you used in Datadog
-REASONS=("auto" "error" "rare" "rule" "manual" "analytics" "synthetics" "synthetics-browser" "rum" "xray" "lambda" "appsec" "unknown")
-
-# ---------------------------
-# Helpers
-# ---------------------------
-need() { command -v "$1" >/dev/null 2>&1 || { echo "Installing $1..."; sudo yum -y install "$1" >/dev/null 2>&1; }; }
-
-region_detect() {
-  # Try to find the metric in any region
-  local found=""
-  for R in $(aws ec2 describe-regions --query 'Regions[].RegionName' --output text); do
-    local out
-    out="$(aws cloudwatch list-metrics --region "$R" --namespace "$NS" --metric-name "$METRIC" --max-items 1 --output json || true)"
-    if jq -e '.Metrics|length>0' >/dev/null 2>&1 <<<"$out"; then
-      echo "$R"
-      return 0
-    fi
-  done
-  # Fallback to current default region
-  aws configure get region || echo "us-east-1"
+# 1) Create/overwrite the CloudWatch dashboard directly from inline JSON (paste your JSON where indicated)
+aws cloudwatch put-dashboard \
+  --region us-east-1 \
+  --dashboard-name "APM-Trace-Ingestion" \
+  --dashboard-body "$(cat <<'JSON'
+{
+  "widgets": [
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Ingested bytes by reason over time (stacked)",
+        "region": "us-east-1",
+        "stat": "Sum",
+        "period": 300,
+        "stacked": true,
+        "view": "timeSeries",
+        "yAxis": {
+          "left": {
+            "label": "Bytes"
+          }
+        },
+        "metrics": [
+          [
+            "APM/TraceIngestion",
+            "IngestedBytes",
+            "Env",
+            "*",
+            "Service",
+            "*",
+            "IngestionReason",
+            "auto",
+            {
+              "id": "m_auto"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "rule",
+            {
+              "id": "m_rule"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "manual",
+            {
+              "id": "m_manual"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "error",
+            {
+              "id": "m_error"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "rare",
+            {
+              "id": "m_rare"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "analytics",
+            {
+              "id": "m_analytics"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "synthetics",
+            {
+              "id": "m_synth"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "synthetics-browser",
+            {
+              "id": "m_synthbrowser"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "rum",
+            {
+              "id": "m_rum"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "xray",
+            {
+              "id": "m_xray"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "lambda",
+            {
+              "id": "m_lambda"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "appsec",
+            {
+              "id": "m_appsec"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "unknown",
+            {
+              "id": "m_unknown"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 6,
+      "width": 6,
+      "height": 4,
+      "properties": {
+        "title": "Head-based (auto + rule) - bytes and % of total",
+        "region": "us-east-1",
+        "stat": "Sum",
+        "period": 300,
+        "view": "singleValue",
+        "metrics": [
+          [
+            {
+              "expression": "m_auto + m_rule",
+              "label": "HeadBasedBytes",
+              "id": "e_head_bytes"
+            }
+          ],
+          [
+            {
+              "expression": "(m_auto + m_rule) / (m_auto + m_rule + m_manual + m_error + m_rare + m_analytics + m_synth + m_synthbrowser + m_rum + m_xray + m_lambda + m_appsec + m_unknown) * 100",
+              "label": "HeadBased % of total",
+              "id": "e_head_pct"
+            }
+          ],
+          [
+            "APM/TraceIngestion",
+            "IngestedBytes",
+            "Env",
+            "*",
+            "Service",
+            "*",
+            "IngestionReason",
+            "auto",
+            {
+              "visible": false,
+              "id": "m_auto"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "rule",
+            {
+              "visible": false,
+              "id": "m_rule"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "manual",
+            {
+              "visible": false,
+              "id": "m_manual"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "error",
+            {
+              "visible": false,
+              "id": "m_error"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "rare",
+            {
+              "visible": false,
+              "id": "m_rare"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "analytics",
+            {
+              "visible": false,
+              "id": "m_analytics"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "synthetics",
+            {
+              "visible": false,
+              "id": "m_synth"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "synthetics-browser",
+            {
+              "visible": false,
+              "id": "m_synthbrowser"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "rum",
+            {
+              "visible": false,
+              "id": "m_rum"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "xray",
+            {
+              "visible": false,
+              "id": "m_xray"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "lambda",
+            {
+              "visible": false,
+              "id": "m_lambda"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "appsec",
+            {
+              "visible": false,
+              "id": "m_appsec"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "unknown",
+            {
+              "visible": false,
+              "id": "m_unknown"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 6,
+      "y": 6,
+      "width": 6,
+      "height": 4,
+      "properties": {
+        "title": "Current totals by ingestion reason (bytes)",
+        "region": "us-east-1",
+        "stat": "Sum",
+        "period": 300,
+        "view": "singleValue",
+        "metrics": [
+          [
+            "APM/TraceIngestion",
+            "IngestedBytes",
+            "Env",
+            "*",
+            "Service",
+            "*",
+            "IngestionReason",
+            "auto",
+            {
+              "label": "auto"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "rule",
+            {
+              "label": "rule"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "error",
+            {
+              "label": "error"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "rare",
+            {
+              "label": "rare"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "synthetics",
+            {
+              "label": "synthetics"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "synthetics-browser",
+            {
+              "label": "synthetics-browser"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "rum",
+            {
+              "label": "rum"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "lambda",
+            {
+              "label": "lambda"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "xray",
+            {
+              "label": "xray"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "analytics",
+            {
+              "label": "analytics"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "manual",
+            {
+              "label": "manual"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "appsec",
+            {
+              "label": "appsec"
+            }
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "unknown",
+            {
+              "label": "unknown"
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 10,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "title": "Ingested bytes by reason (bars)",
+        "region": "us-east-1",
+        "stat": "Sum",
+        "period": 300,
+        "view": "bar",
+        "yAxis": {
+          "left": {
+            "label": "Bytes"
+          }
+        },
+        "metrics": [
+          [
+            "APM/TraceIngestion",
+            "IngestedBytes",
+            "Env",
+            "*",
+            "Service",
+            "*",
+            "IngestionReason",
+            "auto"
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "rule"
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "manual"
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "error"
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "rare"
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "analytics"
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "synthetics"
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "synthetics-browser"
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "rum"
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "lambda"
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "xray"
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "appsec"
+          ],
+          [
+            ".",
+            "IngestedBytes",
+            ".",
+            "*",
+            ".",
+            "*",
+            "IngestionReason",
+            "unknown"
+          ]
+        ]
+      }
+    }
+  ]
 }
-
-seed_sample_data() {
-  local R="$1"
-  echo "Seeding minimal sample data into $R for $NS/$METRIC (so the dashboard has something to show)..."
-  for ENV in "${ENV_LIST[@]}"; do
-    for RR in "${REASONS[@]}"; do
-      aws cloudwatch put-metric-data --region "$R" --namespace "$NS" --metric-data "[
-        {\"MetricName\":\"$METRIC\",
-         \"Dimensions\":[
-           {\"Name\":\"Env\",\"Value\":\"$ENV\"},
-           {\"Name\":\"Service\",\"Value\":\"$SERVICE_FOR_SEED\"},
-           {\"Name\":\"IngestionReason\",\"Value\":\"$RR\"}],
-         \"Value\":$(( (RANDOM%40+10)*1024*1024 )), \"Unit\":\"Bytes\",\"StorageResolution\":60}
-      ]" >/dev/null
-    done
-  done
-  echo "Seed complete."
-}
-
-make_dashboard_file() {
-  local R="$1"
-  local file="apm_ingestion_dashboard.json"
-  cat > "$file" <<JSON
-{"widgets":[
-  {"type":"text","x":0,"y":0,"width":24,"height":2,"properties":{"markdown":"# APM Traces Ingestion Reasons Overview"}},
-  {"type":"text","x":0,"y":2,"width":24,"height":1,"properties":{"markdown":"All envs"}},
-
-  {"type":"metric","x":0,"y":3,"width":10,"height":8,"properties":{
-    "region":"$R","view":"pie","stat":"Sum","period":300,
-    "title":"Ingested bytes by reason (ALL ENVS)",
-    "metrics":[
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,*,Service,*,IngestionReason,auto}','Sum',300)","label":"auto"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,*,Service,*,IngestionReason,error}','Sum',300)","label":"error"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,*,Service,*,IngestionReason,rare}','Sum',300)","label":"rare"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,*,Service,*,IngestionReason,rule}','Sum',300)","label":"rule"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,*,Service,*,IngestionReason,manual}','Sum',300)","label":"manual"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,*,Service,*,IngestionReason,analytics}','Sum',300)","label":"analytics"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,*,Service,*,IngestionReason,synthetics}','Sum',300)","label":"synthetics"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,*,Service,*,IngestionReason,synthetics-browser}','Sum',300)","label":"synthetics-browser"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,*,Service,*,IngestionReason,rum}','Sum',300)","label":"rum"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,*,Service,*,IngestionReason,xray}','Sum',300)","label":"xray"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,*,Service,*,IngestionReason,lambda}','Sum',300)","label":"lambda"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,*,Service,*,IngestionReason,appsec}','Sum',300)","label":"appsec"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,*,Service,*,IngestionReason,unknown}','Sum',300)","label":"unknown"}]
-    ]}},
-
-  {"type":"metric","x":10,"y":3,"width":14,"height":8,"properties":{
-    "region":"$R","view":"timeSeries","stat":"Sum","period":300,"stacked":true,
-    "title":"Reasons over time (ALL ENVS)",
-    "metrics":[
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,*,Service,*,IngestionReason,auto}','Sum',300)","label":"auto"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,*,Service,*,IngestionReason,error}','Sum',300)","label":"error"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,*,Service,*,IngestionReason,rare}','Sum',300)","label":"rare"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,*,Service,*,IngestionReason,rule}','Sum',300)","label":"rule"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,*,Service,*,IngestionReason,manual}','Sum',300)","label":"manual"}]
-    ]}},
-
-  {"type":"text","x":0,"y":11,"width":24,"height":1,"properties":{"markdown":"Env: ${ENV_LIST[0]}" }},
-  {"type":"metric","x":0,"y":12,"width":10,"height":8,"properties":{
-    "region":"$R","view":"pie","stat":"Sum","period":300,
-    "title":"${ENV_LIST[0]} – Ingested by reason",
-    "metrics":[
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,${ENV_LIST[0]},Service,*,IngestionReason,auto}','Sum',300)","label":"auto"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,${ENV_LIST[0]},Service,*,IngestionReason,error}','Sum',300)","label":"error"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,${ENV_LIST[0]},Service,*,IngestionReason,rare}','Sum',300)","label":"rare"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,${ENV_LIST[0]},Service,*,IngestionReason,rule}','Sum',300)","label":"rule"}]
-    ]}},
-  {"type":"metric","x":10,"y":12,"width":14,"height":8,"properties":{
-    "region":"$R","view":"timeSeries","stat":"Sum","period":300,"stacked":true,
-    "title":"${ENV_LIST[0]} – Reasons over time",
-    "metrics":[
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,${ENV_LIST[0]},Service,*,IngestionReason,auto}','Sum',300)","label":"auto"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,${ENV_LIST[0]},Service,*,IngestionReason,error}','Sum',300)","label":"error"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,${ENV_LIST[0]},Service,*,IngestionReason,rare}','Sum',300)","label":"rare"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,${ENV_LIST[0]},Service,*,IngestionReason,rule}','Sum',300)","label":"rule"}]
-    ]}},
-
-  {"type":"text","x":0,"y":20,"width":24,"height":1,"properties":{"markdown":"Env: ${ENV_LIST[1]}" }},
-  {"type":"metric","x":0,"y":21,"width":10,"height":8,"properties":{
-    "region":"$R","view":"pie","stat":"Sum","period":300,
-    "title":"${ENV_LIST[1]} – Ingested by reason",
-    "metrics":[
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,${ENV_LIST[1]},Service,*,IngestionReason,auto}','Sum',300)","label":"auto"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,${ENV_LIST[1]},Service,*,IngestionReason,error}','Sum',300)","label":"error"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,${ENV_LIST[1]},Service,*,IngestionReason,rare}','Sum',300)","label":"rare"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,${ENV_LIST[1]},Service,*,IngestionReason,rule}','Sum',300)","label":"rule"}]
-    ]}},
-  {"type":"metric","x":10,"y":21,"width":14,"height":8,"properties":{
-    "region":"$R","view":"timeSeries","stat":"Sum","period":300,"stacked":true,
-    "title":"${ENV_LIST[1]} – Reasons over time",
-    "metrics":[
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,${ENV_LIST[1]},Service,*,IngestionReason,auto}','Sum',300)","label":"auto"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,${ENV_LIST[1]},Service,*,IngestionReason,error}','Sum',300)","label":"error"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,${ENV_LIST[1]},Service,*,IngestionReason,rare}','Sum',300)","label":"rare"}],
-      [{"expression":"SEARCH('{$NS,$METRIC,Env,${ENV_LIST[1]},Service,*,IngestionReason,rule}','Sum',300)","label":"rule"}]
-    ]}}
-]}
 JSON
-  echo "$file"
-}
-
-apply_dashboard() {
-  local file="$1"
-  echo "Validating JSON..."
-  jq . "$file" >/dev/null
-  echo "Applying dashboard $DASH_NAME..."
-  aws cloudwatch put-dashboard --dashboard-name "$DASH_NAME" --dashboard-body "file://$file"
-  echo "Dashboard applied."
-}
-
-# ---------------------------
-# Main
-# ---------------------------
-need jq
-
-echo "Detecting region with $NS/$METRIC ..."
-REGION="$(region_detect)"
-echo "Using region: $REGION"
-
-# Check if the metric exists anywhere
-EXISTS="$(aws cloudwatch list-metrics --region "$REGION" --namespace "$NS" --metric-name "$METRIC" --max-items 1 --output json || true)"
-if ! jq -e '.Metrics|length>0' >/dev/null 2>&1 <<<"$EXISTS"; then
-  if [[ "$SEED_IF_ABSENT" == "true" ]]; then
-    seed_sample_data "$REGION"
-  else
-    echo "No existing metrics found for $NS/$METRIC. Set SEED_IF_ABSENT=true or start publishing your metrics, then re-run."
-    exit 1
-  fi
-fi
-
-DASH_FILE="$(make_dashboard_file "$REGION")"
-apply_dashboard "$DASH_FILE"
-
-echo
-echo "Open CloudWatch → Dashboards → $DASH_NAME (region: $REGION)."
-echo "If you want different envs/services/namespaces, edit the variables at the top and rerun."
-BASH
-# ===== paste everything up to here =====
-
-chmod +x setup_apm_dashboard.sh
-./setup_apm_dashboard.sh
+)"
