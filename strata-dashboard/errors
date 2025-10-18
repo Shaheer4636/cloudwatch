@@ -1,136 +1,115 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-### ====== CONFIG ======
+## ====== CONFIG ======
 REGION="us-east-1"
 CLUSTER="Strata-uat-eks-OwJIPjnj"
 DASHBOARD="Strata-uat-eks-OwJIPjnj-cloudwatch"
-NAMESPACE="amazon-cloudwatch"       # where the agent + fluent-bit live
+PERIOD=300
+NS="amazon-cloudwatch"
 SA_AGENT="cloudwatch-agent"
 SA_FLB="fluent-bit"
-PERIOD=300
-### ====================
+POLICY_ARN="arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+## ====================
 
-echo "== sanity: who/where =="
 aws configure set region "$REGION"
 aws sts get-caller-identity >/dev/null
 
-echo "== 1/7: hook kubectl to your EKS =="
-aws eks update-kubeconfig --name "$CLUSTER" --region "$REGION"
-kubectl cluster-info >/dev/null
+echo "== 1) Make sure the cluster exists and we can call EKS API =="
+aws eks describe-cluster --name "$CLUSTER" --query 'cluster.status' --output text
 
-echo "== 2/7: ensure OIDC provider for IRSA exists =="
-OIDC_ID=$(aws eks describe-cluster --name "$CLUSTER" --query "cluster.identity.oidc.issuer" --output text | sed 's#^https://##')
-if ! aws iam list-open-id-connect-providers --query "OpenIDConnectProviderList[?contains(Arn, '$OIDC_ID')]" --output text | grep -q "$OIDC_ID"; then
+echo "== 2) Ensure EKS OIDC provider (for IRSA/Pod Identity) =="
+OIDC_ISSUER=$(aws eks describe-cluster --name "$CLUSTER" --query "cluster.identity.oidc.issuer" --output text | sed 's#^https://##')
+if ! aws iam list-open-id-connect-providers --query "OpenIDConnectProviderList[?contains(Arn, '$OIDC_ISSUER')]" --output text | grep -q "$OIDC_ISSUER"; then
   eksctl utils associate-iam-oidc-provider --cluster "$CLUSTER" --region "$REGION" --approve || true
 fi
 
-echo "== 3/7: create IAM roles for the service accounts (IRSA) =="
-# Managed policy covers: CloudWatch Logs (create stream/put events), PutMetricData, etc.
-POLICY_ARN="arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
-
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-OIDC_ARN=$(aws iam list-open-id-connect-providers --query "OpenIDConnectProviderList[?contains(Arn, '$OIDC_ID')].Arn" --output text)
 
-mk_trust () {
-cat <<EOF
+mk_trust() {
+  cat <<JSON
 {
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Principal": { "Federated": "$OIDC_ARN" },
-      "Action": "sts:AssumeRoleWithWebIdentity",
-      "Condition": {
-        "StringEquals": {
-          "$OIDC_ID:sub": "system:serviceaccount:$NAMESPACE:$1",
-          "$OIDC_ID:aud": "sts.amazonaws.com"
-        }
-      }
-    }
-  ]
+  "Version":"2012-10-17",
+  "Statement":[{
+    "Effect":"Allow",
+    "Principal":{"Federated":"arn:aws:iam::$ACCOUNT_ID:oidc-provider/$OIDC_ISSUER"},
+    "Action":"sts:AssumeRoleWithWebIdentity",
+    "Condition":{"StringEquals":{"$OIDC_ISSUER:aud":"sts.amazonaws.com"}}
+  }]
 }
-EOF
+JSON
 }
 
 ensure_role () {
-  local role="$1" sa="$2"
+  local role="$1"
   if ! aws iam get-role --role-name "$role" >/dev/null 2>&1; then
-    mk_trust "$sa" > /tmp/trust.json
-    aws iam create-role --role-name "$role" --assume-role-policy-document file:///tmp/trust.json >/dev/null
+    mk_trust > /tmp/trust.json
+    aws iam create-role --role-name "$role" \
+      --assume-role-policy-document file:///tmp/trust.json >/dev/null
     aws iam attach-role-policy --role-name "$role" --policy-arn "$POLICY_ARN" >/dev/null
   fi
 }
 
+echo "== 3) Create IAM roles used by the add-on pods =="
 ROLE_AGENT="${CLUSTER}-cwagent-role"
 ROLE_FLB="${CLUSTER}-fluentbit-role"
-
-ensure_role "$ROLE_AGENT" "$SA_AGENT"
-ensure_role "$ROLE_FLB"   "$SA_FLB"
-
+ensure_role "$ROLE_AGENT"
+ensure_role "$ROLE_FLB"
 ROLE_AGENT_ARN="arn:aws:iam::$ACCOUNT_ID:role/$ROLE_AGENT"
 ROLE_FLB_ARN="arn:aws:iam::$ACCOUNT_ID:role/$ROLE_FLB"
 
-echo "== 4/7: create namespace + service accounts with IRSA annotations =="
-kubectl get ns "$NAMESPACE" >/dev/null 2>&1 || kubectl create ns "$NAMESPACE"
-kubectl apply -n "$NAMESPACE" -f - <<EOF
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: $SA_AGENT
-  namespace: $NAMESPACE
-  annotations:
-    eks.amazonaws.com/role-arn: $ROLE_AGENT_ARN
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: $SA_FLB
-  namespace: $NAMESPACE
-  annotations:
-    eks.amazonaws.com/role-arn: $ROLE_FLB_ARN
-EOF
+echo "== 4) Install the EKS managed add-on: amazon-cloudwatch-observability =="
+# (No kubectl; control plane does the deployment inside your private cluster)
+if ! aws eks describe-addon --cluster-name "$CLUSTER" --addon-name amazon-cloudwatch-observability >/dev/null 2>&1; then
+  aws eks create-addon --cluster-name "$CLUSTER" --addon-name amazon-cloudwatch-observability >/dev/null
+fi
 
-echo "== 5/7: deploy official Container Insights daemonsets (Agent + Fluent Bit) =="
-curl -fsSL https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/quickstart/cwagent-fluent-bit-quickstart.yaml \
-  | sed -e "s/{{cluster_name}}/$CLUSTER/g" -e "s/{{region_name}}/$REGION/g" \
-  | kubectl apply -n "$NAMESPACE" -f -
+# Wait for ACTIVE
+echo -n "   waiting for add-on to be ACTIVE"
+for i in {1..40}; do
+  STATUS=$(aws eks describe-addon --cluster-name "$CLUSTER" --addon-name amazon-cloudwatch-observability --query 'addon.status' --output text 2>/dev/null || echo "CREATING")
+  [[ "$STATUS" == "ACTIVE" ]] && { echo " -> ACTIVE"; break; }
+  echo -n "."
+  sleep 6
+done
 
-echo "== wait for pods to be Running =="
-kubectl rollout status ds/cwagent -n "$NAMESPACE" --timeout=180s
-kubectl rollout status ds/fluent-bit -n "$NAMESPACE" --timeout=180s
+echo "== 5) Bind IAM roles to the service accounts via EKS Pod Identity =="
+# The add-on creates namespace $NS and SAs: cloudwatch-agent, fluent-bit
+aws eks create-pod-identity-association \
+  --cluster-name "$CLUSTER" --namespace "$NS" --service-account "$SA_AGENT" \
+  --role-arn "$ROLE_AGENT_ARN" >/dev/null 2>&1 || true
 
-echo "== 6/7: verify data is landing (this can take ~1–3 minutes) =="
+aws eks create-pod-identity-association \
+  --cluster-name "$CLUSTER" --namespace "$NS" --service-account "$SA_FLB" \
+  --role-arn "$ROLE_FLB_ARN" >/dev/null 2>&1 || true
+
+echo "== 6) Verify log groups appear (may take ~1-3 minutes) =="
 APP="/aws/containerinsights/$CLUSTER/application"
 HOST="/aws/containerinsights/$CLUSTER/host"
 PERF="/aws/containerinsights/$CLUSTER/performance"
 
-for lg in "$APP" "$HOST" "$PERF"; do
-  echo "  log group: $lg"
-  aws logs describe-log-groups --log-group-name-prefix "$lg" --query "logGroups[].logGroupName"
+for i in {1..20}; do
+  FOUND=$(aws logs describe-log-groups --log-group-name-prefix "/aws/containerinsights/$CLUSTER/" \
+    --query "length(logGroups)" --output text)
+  [[ "$FOUND" -ge 3 ]] && { echo "   log groups created."; break; }
+  echo "   waiting for Container Insights log groups … ($i/20)"; sleep 9
 done
 
-# Poll up to 10 times for a first metric to appear
-echo "  waiting for first metrics …"
-for i in {1..10}; do
-  sleep 15
-  COUNT=$(aws cloudwatch list-metrics \
-      --namespace "AWS/ContainerInsights" \
-      --metric-name "node_cpu_utilization" \
-      --dimensions Name=ClusterName,Value="$CLUSTER" \
-      --query "length(Metrics)")
-  if [[ "$COUNT" -gt 0 ]]; then echo "  metrics found ($COUNT)"; break; fi
-  echo "  …still waiting ($i/10)"
-done
+echo "== 7) Check that core metrics exist =="
+# Try a core CI metric by ClusterName
+aws cloudwatch list-metrics \
+  --namespace "AWS/ContainerInsights" \
+  --metric-name node_cpu_utilization \
+  --dimensions Name=ClusterName,Value="$CLUSTER" \
+  --max-items 5
 
-echo "== 7/7: create/refresh a richer dashboard (real metrics) =="
-cat > dashboard.json <<EOF
+echo "== 8) Create/refresh the dashboard with REAL metrics =="
+cat > dashboard.json <<JSON
 {
   "widgets": [
     { "type":"text","x":0,"y":0,"width":24,"height":2,
-      "properties":{"markdown":"# EKS – $CLUSTER (CloudWatch)\\n**Live data from Container Insights**"}
+      "properties":{"markdown":"# EKS – $CLUSTER (CloudWatch)\\nLive data from **AWS/ContainerInsights**"}
     },
-
     { "type":"metric","x":0,"y":2,"width":8,"height":6,
       "properties":{"region":"$REGION","title":"Cluster CPU (%)","view":"timeSeries","stat":"Average","period":$PERIOD,
         "yAxis":{"left":{"min":0,"max":100}},
@@ -146,7 +125,6 @@ cat > dashboard.json <<EOF
         "yAxis":{"left":{"min":0,"max":100}},
         "metrics":[["AWS/ContainerInsights","node_filesystem_utilization","ClusterName","$CLUSTER"]]
     }},
-
     { "type":"metric","x":0,"y":8,"width":12,"height":6,
       "properties":{"region":"$REGION","title":"Pods by phase","view":"timeSeries","stat":"Sum","period":$PERIOD,
         "metrics":[
@@ -160,7 +138,6 @@ cat > dashboard.json <<EOF
       "properties":{"region":"$REGION","title":"Running pods by namespace","view":"timeSeries","stat":"Sum","period":$PERIOD,
         "metrics":[["AWS/ContainerInsights","pod_number_of_running_pods","ClusterName","$CLUSTER","Namespace","*"]]
     }},
-
     { "type":"metric","x":0,"y":14,"width":12,"height":6,
       "properties":{"region":"$REGION","title":"Node CPU by node (%)","view":"timeSeries","stat":"Average","period":$PERIOD,
         "yAxis":{"left":{"min":0,"max":100}},
@@ -171,16 +148,15 @@ cat > dashboard.json <<EOF
         "yAxis":{"left":{"min":0,"max":100}},
         "metrics":[["AWS/ContainerInsights","node_memory_utilization","ClusterName","$CLUSTER","NodeName","*"]]
     }},
-
     { "type":"metric","x":0,"y":20,"width":12,"height":6,
-      "properties":{"region":"$REGION","title":"Node network (rx/tx bytes)","view":"timeSeries","stat":"Sum","period":$PERIOD,
+      "properties":{"region":"$REGION","title":"Node network bytes","view":"timeSeries","stat":"Sum","period":$PERIOD,
         "metrics":[
           ["AWS/ContainerInsights","node_network_rx_bytes","ClusterName","$CLUSTER","NodeName","*"],
           [".","node_network_tx_bytes",".","$CLUSTER","NodeName","*"]
         ]
     }},
     { "type":"metric","x":12,"y":20,"width":12,"height":6,
-      "properties":{"region":"$REGION","title":"Node disk IO (read/write bytes)","view":"timeSeries","stat":"Sum","period":$PERIOD,
+      "properties":{"region":"$REGION","title":"Node disk IO bytes","view":"timeSeries","stat":"Sum","period":$PERIOD,
         "metrics":[
           ["AWS/ContainerInsights","node_diskio_read_bytes","ClusterName","$CLUSTER","NodeName","*"],
           [".","node_diskio_write_bytes",".","$CLUSTER","NodeName","*"]
@@ -188,10 +164,13 @@ cat > dashboard.json <<EOF
     }}
   ]
 }
-EOF
+JSON
 
-aws cloudwatch put-dashboard --region "$REGION" --dashboard-name "$DASHBOARD" --dashboard-body file://dashboard.json >/dev/null
+aws cloudwatch put-dashboard \
+  --region "$REGION" \
+  --dashboard-name "$DASHBOARD" \
+  --dashboard-body file://dashboard.json >/dev/null
 
-echo "== done =="
-echo "Open CloudWatch > Dashboards > $DASHBOARD (set time range to last 1–3h)."
-echo "Tip: first datapoints usually appear a minute or two after the pods are Running."
+echo "== DONE =="
+echo "Open CloudWatch > Dashboards > $DASHBOARD. Use 1h–3h range."
+echo "If panels are empty, give the add-on a couple of minutes to emit the first datapoints."
