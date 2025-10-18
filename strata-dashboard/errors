@@ -1,23 +1,91 @@
-# Make sure kubectl is pointed at Strata-uat-eks-OwJIPjnj
-kubectl config current-context
-kubectl get nodes -o wide
+set -euo pipefail
 
-# Create namespace if missing
-kubectl create namespace amazon-cloudwatch || true
+# ===== config =====
+REGION="us-east-1"
+CLUSTER="Strata-uat-eks-OwJIPjnj"
+DASHBOARD_NAME="Strata-uat-eks-OwJIPjnj-cloudwatch"
+LG_APP="/aws/containerinsights/$CLUSTER/application"
+LG_HOST="/aws/containerinsights/$CLUSTER/host"
+LG_PERF="/aws/containerinsights/$CLUSTER/performance"
+STREAM="bootstrap-$(date -u +%Y%m%dT%H%M%S)"
 
-# Deploy/repair cwagent + fluent-bit (metrics + logs)
-curl -s \
-https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/quickstart/cwagent-fluent-bit-quickstart.yaml \
-| sed "s/{{cluster_name}}/$CLUSTER/g; s/{{region_name}}/$REGION/g" \
-| kubectl apply -f -
+aws configure set region "$REGION"
 
-# Wait until cwagent pods are Running
-kubectl -n amazon-cloudwatch get pods -w
+echo "== ensure log groups =="
+for LG in "$LG_APP" "$LG_HOST" "$LG_PERF"; do
+  aws logs create-log-group --log-group-name "$LG" 2>/dev/null || true
+  aws logs put-retention-policy --log-group-name "$LG" --retention-in-days 7 || true
+done
 
+echo "== create stream in performance =="
+aws logs create-log-stream --log-group-name "$LG_PERF" --log-stream-name "$STREAM" 2>/dev/null || true
 
+# helper: epoch millis
+now_ms() { echo $(( $(date +%s) * 1000 )); }
 
+# ===== build a few EMF samples =====
+T0=$(now_ms); T1=$((T0+1)); T2=$((T0+2)); T3=$((T0+3))
+
+# IMPORTANT: Namespace must NOT begin with AWS/ for custom metrics
+# We publish into "ContainerInsights" to mirror CI names/dimensions.
+cat > emf.jsonl <<EOF
+{"_aws":{"Timestamp":$T0,"CloudWatchMetrics":[{"Namespace":"ContainerInsights","Dimensions":[["ClusterName","NodeName"]],"Metrics":[{"Name":"node_cpu_utilization","Unit":"Percent"},{"Name":"node_memory_utilization","Unit":"Percent"},{"Name":"node_filesystem_utilization","Unit":"Percent"}]}]},"ClusterName":"$CLUSTER","NodeName":"demo-node-1","node_cpu_utilization":23.4,"node_memory_utilization":61.2,"node_filesystem_utilization":48.7}
+{"_aws":{"Timestamp":$T1,"CloudWatchMetrics":[{"Namespace":"ContainerInsights","Dimensions":[["ClusterName","NodeName"]],"Metrics":[{"Name":"node_cpu_utilization","Unit":"Percent"},{"Name":"node_memory_utilization","Unit":"Percent"},{"Name":"node_filesystem_utilization","Unit":"Percent"}]}]},"ClusterName":"$CLUSTER","NodeName":"demo-node-2","node_cpu_utilization":17.9,"node_memory_utilization":42.0,"node_filesystem_utilization":55.1}
+{"_aws":{"Timestamp":$T2,"CloudWatchMetrics":[{"Namespace":"ContainerInsights","Dimensions":[["ClusterName","Namespace"]],"Metrics":[{"Name":"pod_number_of_running_pods","Unit":"Count"}]}]},"ClusterName":"$CLUSTER","Namespace":"kube-system","pod_number_of_running_pods":42}
+{"_aws":{"Timestamp":$T3,"CloudWatchMetrics":[{"Namespace":"ContainerInsights","Dimensions":[["ClusterName","Namespace"]],"Metrics":[{"Name":"pod_number_of_running_pods","Unit":"Count"}]}]},"ClusterName":"$CLUSTER","Namespace":"default","pod_number_of_running_pods":15}
+EOF
+
+# Turn the JSON lines into the structure CloudWatch Logs expects
+cat > events.json <<EOF
+[
+  {"timestamp": $T0, "message": "$(sed -n '1p' emf.jsonl | tr -d '\n' )"},
+  {"timestamp": $T1, "message": "$(sed -n '2p' emf.jsonl | tr -d '\n' )"},
+  {"timestamp": $T2, "message": "$(sed -n '3p' emf.jsonl | tr -d '\n' )"},
+  {"timestamp": $T3, "message": "$(sed -n '4p' emf.jsonl | tr -d '\n' )"}
+]
+EOF
+
+echo "== put EMF events =="
+aws logs put-log-events \
+  --log-group-name "$LG_PERF" \
+  --log-stream-name "$STREAM" \
+  --log-events file://events.json >/dev/null
+
+echo "== verify one EMF message =="
 aws logs filter-log-events \
-  --region "$REGION" \
-  --log-group-name "/aws/containerinsights/$CLUSTER/performance" \
+  --log-group-name "$LG_PERF" \
   --limit 1 \
-  --query 'events[0].message'
+  --query 'events[0].message' \
+  --output text
+
+# ===== update dashboard namespace to ContainerInsights =====
+if [ -f dashboard.json ]; then
+  sed -i 's/"AWS\/ContainerInsights"/"ContainerInsights"/g' dashboard.json
+  aws cloudwatch put-dashboard \
+    --region "$REGION" \
+    --dashboard-name "$DASHBOARD_NAME" \
+    --dashboard-body file://dashboard.json >/dev/null || true
+fi
+
+# ===== query the metrics back so you know they exist =====
+START=$(date -u -d '30 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
+END=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+cat > queries.json <<'JSON'
+[
+  {
+    "Id": "cpu",
+    "Expression": "SEARCH('{ContainerInsights,ClusterName=\"Strata-uat-eks-OwJIPjnj\",NodeName,*} MetricName=\"node_cpu_utilization\"', 'Average', 300)"
+  },
+  {
+    "Id": "pods",
+    "Expression": "SEARCH('{ContainerInsights,ClusterName=\"Strata-uat-eks-OwJIPjnj\",Namespace,*} MetricName=\"pod_number_of_running_pods\"', 'Sum', 300)"
+  }
+]
+JSON
+
+echo "== metric probe (should show Points > 0) =="
+aws cloudwatch get-metric-data \
+  --start-time "$START" --end-time "$END" \
+  --metric-data-queries file://queries.json \
+  --query 'MetricDataResults[].{Id:Id,Series:length(Label),Points:length(Timestamps)}'
