@@ -1,0 +1,4 @@
+We’re moving EKS monitoring from Datadog to CloudWatch for centralized, native AWS visibility and cost/control.
+Right now our CloudWatch dashboards are empty because Container Insights isn’t emitting metrics: the CW Agent/Fluent Bit add-ons aren’t fully installed with IRSA/OIDC + IAM perms, and Kube State Metrics/Metrics Server show degraded/failed.
+Please enable IRSA, deploy the CloudWatch Observability (cwagent) and Fluent Bit add-ons with write perms to CloudWatch (metrics + logs), and ensure /aws/containerinsights/Strata-uat-eks-OwJIPjnj/{performance,host,application} receive events.
+Once those are healthy, metrics will appear under AWS/ContainerInsights and our CloudWatch dashboard will populate.
