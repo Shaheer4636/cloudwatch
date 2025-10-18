@@ -1,12 +1,23 @@
-REGION=us-east-1
-CLUSTER=Strata-uat-eks-OwJIPjnj
+# Make sure kubectl is pointed at Strata-uat-eks-OwJIPjnj
+kubectl config current-context
+kubectl get nodes -o wide
 
-# show 2 recent messages from the performance group
+# Create namespace if missing
+kubectl create namespace amazon-cloudwatch || true
+
+# Deploy/repair cwagent + fluent-bit (metrics + logs)
+curl -s \
+https://raw.githubusercontent.com/aws-samples/amazon-cloudwatch-container-insights/latest/k8s-deployment-manifest-templates/deployment-mode/daemonset/container-insights-monitoring/quickstart/cwagent-fluent-bit-quickstart.yaml \
+| sed "s/{{cluster_name}}/$CLUSTER/g; s/{{region_name}}/$REGION/g" \
+| kubectl apply -f -
+
+# Wait until cwagent pods are Running
+kubectl -n amazon-cloudwatch get pods -w
+
+
+
 aws logs filter-log-events \
   --region "$REGION" \
   --log-group-name "/aws/containerinsights/$CLUSTER/performance" \
-  --limit 2 \
-  --query 'events[].message'
-
-
-
+  --limit 1 \
+  --query 'events[0].message'
