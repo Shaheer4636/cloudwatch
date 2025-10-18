@@ -1,27 +1,18 @@
-export AWS_REGION=us-east-1
-export AWS_DEFAULT_REGION=us-east-1
-CLUSTER="Strata-uat-eks-OwJIPjnj"
+START=$(date -u -d '2 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+END=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-# 1) Which namespace is used? Try both.
-for NS in "AWS/ContainerInsights" "ContainerInsights" "CWAgent"; do
-  echo "---- $NS node_cpu_utilization (cluster-only) ----"
-  aws cloudwatch list-metrics \
-    --namespace "$NS" \
-    --metric-name node_cpu_utilization \
-    --dimensions Name=ClusterName,Value="$CLUSTER" \
-    --max-items 5
-done
-
-# 2) What dimensions exist for node_cpu_utilization?
-aws cloudwatch list-metrics \
-  --namespace AWS/ContainerInsights \
-  --metric-name node_cpu_utilization \
-  --dimensions Name=ClusterName,Value="$CLUSTER" Name=NodeName \
-  --max-items 5
-
-# If that returns nothing, try the other namespace too:
-aws cloudwatch list-metrics \
-  --namespace ContainerInsights \
-  --metric-name node_cpu_utilization \
-  --dimensions Name=ClusterName,Value="$CLUSTER" Name=NodeName \
-  --max-items 5
+# Try both namespaces; one will return datapoints
+aws cloudwatch get-metric-data \
+  --region us-east-1 \
+  --start-time "$START" --end-time "$END" \
+  --metric-data-queries '[
+    {
+      "Id":"cpu_ci",
+      "Expression":"SEARCH(\"{AWS/ContainerInsights,ClusterName=\"\"Strata-uat-eks-OwJIPjnj\"\"} MetricName=\"\"node_cpu_utilization\"\"\", \"Average\", 300)"
+    },
+    {
+      "Id":"cpu_ci_alt",
+      "Expression":"SEARCH(\"{ContainerInsights,ClusterName=\"\"Strata-uat-eks-OwJIPjnj\"\"} MetricName=\"\"node_cpu_utilization\"\"\", \"Average\", 300)"
+    }
+  ]' \
+  --query 'MetricDataResults[].{Id:Id,Points:length(Timestamps)}'
