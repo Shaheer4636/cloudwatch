@@ -1,15 +1,27 @@
-# 1) Do we have node CPU with NodeName dimension?
+export AWS_REGION=us-east-1
+export AWS_DEFAULT_REGION=us-east-1
+CLUSTER="Strata-uat-eks-OwJIPjnj"
+
+# 1) Which namespace is used? Try both.
+for NS in "AWS/ContainerInsights" "ContainerInsights" "CWAgent"; do
+  echo "---- $NS node_cpu_utilization (cluster-only) ----"
+  aws cloudwatch list-metrics \
+    --namespace "$NS" \
+    --metric-name node_cpu_utilization \
+    --dimensions Name=ClusterName,Value="$CLUSTER" \
+    --max-items 5
+done
+
+# 2) What dimensions exist for node_cpu_utilization?
 aws cloudwatch list-metrics \
-  --region us-east-1 \
   --namespace AWS/ContainerInsights \
   --metric-name node_cpu_utilization \
-  --dimensions Name=ClusterName,Value=Strata-uat-eks-OwJIPjnj Name=NodeName,Value="*" \
+  --dimensions Name=ClusterName,Value="$CLUSTER" Name=NodeName \
   --max-items 5
 
-# 2) Running pods by Namespace?
+# If that returns nothing, try the other namespace too:
 aws cloudwatch list-metrics \
-  --region us-east-1 \
-  --namespace AWS/ContainerInsights \
-  --metric-name pod_number_of_running_pods \
-  --dimensions Name=ClusterName,Value=Strata-uat-eks-OwJIPjnj Name=Namespace,Value="*" \
+  --namespace ContainerInsights \
+  --metric-name node_cpu_utilization \
+  --dimensions Name=ClusterName,Value="$CLUSTER" Name=NodeName \
   --max-items 5
