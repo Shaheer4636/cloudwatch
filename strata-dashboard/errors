@@ -1,21 +1,22 @@
-START=$(date -u -d '2 hours ago' +%Y-%m-%dT%H:%M:%SZ)
-END=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+bash-5.2# 
+bash-5.2# cat > queries.json <<'JSON'
+> [
+>   {
+>     "Id": "cpu_ci",
+>     "Expression": "SEARCH('{AWS/ContainerInsights,ClusterName=\"Strata-uat-eks-OwJIPjnj\",NodeName=*} MetricName=\"node_cpu_utilization\"', 'Average', 300)"
+>   },
+>   {
+>     "Id": "cpu_ci_alt",
+>     "Expression": "SEARCH('{ContainerInsights,ClusterName=\"Strata-uat-eks-OwJIPjnj\",NodeName=*} MetricName=\"node_cpu_utilization\"', 'Average', 300)"
+>   }
+> ]
+> JSON
+bash-5.2# 
+bash-5.2# aws cloudwatch get-metric-data \
+>   --region us-east-1 \
+>   --start-time "$START" --end-time "$END" \
+>   --metric-data-queries file://queries.json \
+>   --query 'MetricDataResults[].{Id:Id,Points:length(Timestamps)}'
 
-cat > queries.json <<'JSON'
-[
-  {
-    "Id": "cpu_ci",
-    "Expression": "SEARCH('{AWS/ContainerInsights,ClusterName=\"Strata-uat-eks-OwJIPjnj\",NodeName=*} MetricName=\"node_cpu_utilization\"', 'Average', 300)"
-  },
-  {
-    "Id": "cpu_ci_alt",
-    "Expression": "SEARCH('{ContainerInsights,ClusterName=\"Strata-uat-eks-OwJIPjnj\",NodeName=*} MetricName=\"node_cpu_utilization\"', 'Average', 300)"
-  }
-]
-JSON
-
-aws cloudwatch get-metric-data \
-  --region us-east-1 \
-  --start-time "$START" --end-time "$END" \
-  --metric-data-queries file://queries.json \
-  --query 'MetricDataResults[].{Id:Id,Points:length(Timestamps)}'
+An error occurred (ValidationError) when calling the GetMetricData operation: Invalid SEARCH parameter: {AWS/ContainerInsights,ClusterName="Strata-uat-eks-OwJIPjnj",NodeName=*} MetricName="node_cpu_utilization"
+bash-5.2# 
