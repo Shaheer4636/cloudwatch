@@ -1,91 +1,222 @@
-set -euo pipefail
+ --metric-name pod_number_of_running_pods \
+>   --dimensions Name=ClusterName,Value=Strata-uat-eks-OwJIPjnj Name=Namespace,Value="*" \
+>   --max-items 5
+{
+    "Metrics": []
+}
+bash-5.2# export AWS_REGION=us-east-1
+bash-5.2# export AWS_DEFAULT_REGION=us-east-1
+bash-5.2# CLUSTER="Strata-uat-eks-OwJIPjnj"
+bash-5.2# 
+bash-5.2# # 1) Which namespace is used? Try both.
+bash-5.2# for NS in "AWS/ContainerInsights" "ContainerInsights" "CWAgent"; do
+>   echo "---- $NS node_cpu_utilization (cluster-only) ----"
+>   aws cloudwatch list-metrics \
+>     --namespace "$NS" \
+>     --metric-name node_cpu_utilization \
+>     --dimensions Name=ClusterName,Value="$CLUSTER" \
+>     --max-items 5
+> done
+---- AWS/ContainerInsights node_cpu_utilization (cluster-only) ----
+{
+    "Metrics": []
+}
+---- ContainerInsights node_cpu_utilization (cluster-only) ----
+{
+    "Metrics": []
+}
+---- CWAgent node_cpu_utilization (cluster-only) ----
+{
+    "Metrics": []
+}
+bash-5.2# 
+bash-5.2# # 2) What dimensions exist for node_cpu_utilization?
+bash-5.2# aws cloudwatch list-metrics \
+>   --namespace AWS/ContainerInsights \
+>   --metric-name node_cpu_utilization \
+>   --dimensions Name=ClusterName,Value="$CLUSTER" Name=NodeName \
+>   --max-items 5
+{
+    "Metrics": []
+}
+bash-5.2# 
+bash-5.2# # If that returns nothing, try the other namespace too:
+bash-5.2# aws cloudwatch list-metrics \
+>   --namespace ContainerInsights \
+>   --metric-name node_cpu_utilization \
+>   --dimensions Name=ClusterName,Value="$CLUSTER" Name=NodeName \
+>   --max-items 5
+{
+    "Metrics": []
+}
+bash-5.2# START=$(date -u -d '2 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+bash-5.2# END=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+bash-5.2# 
+bash-5.2# # Try both namespaces; one will return datapoints
+bash-5.2# aws cloudwatch get-metric-data \
+>   --region us-east-1 \
+>   --start-time "$START" --end-time "$END" \
+>   --metric-data-queries '[
+>     {
+>       "Id":"cpu_ci",
+>       "Expression":"SEARCH(\"{AWS/ContainerInsights,ClusterName=\"\"Strata-uat-eks-OwJIPjnj\"\"} MetricName=\"\"node_cpu_utilization\"\"\", \"Average\", 300)"
+>     },
+>     {
+>       "Id":"cpu_ci_alt",
+>       "Expression":"SEARCH(\"{ContainerInsights,ClusterName=\"\"Strata-uat-eks-OwJIPjnj\"\"} MetricName=\"\"node_cpu_utilization\"\"\", \"Average\", 300)"
+>     }
+>   ]' \
+>   --query 'MetricDataResults[].{Id:Id,Points:length(Timestamps)}'
 
-# ===== config =====
-REGION="us-east-1"
-CLUSTER="Strata-uat-eks-OwJIPjnj"
-DASHBOARD_NAME="Strata-uat-eks-OwJIPjnj-cloudwatch"
-LG_APP="/aws/containerinsights/$CLUSTER/application"
-LG_HOST="/aws/containerinsights/$CLUSTER/host"
-LG_PERF="/aws/containerinsights/$CLUSTER/performance"
-STREAM="bootstrap-$(date -u +%Y%m%dT%H%M%S)"
+An error occurred (ValidationError) when calling the GetMetricData operation: Error in expression 'cpu_ci': Invalid syntax
+bash-5.2# START=$(date -u -d '2 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+bash-5.2# END=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+bash-5.2# 
+bash-5.2# aws cloudwatch get-metric-data \
+>   --region us-east-1 \
+>   --start-time "$START" --end-time "$END" \
+>   --metric-data-queries '[
+>     {
+>       "Id":"cpu_ci",
+>       "Expression":"SEARCH('{AWS/ContainerInsights,ClusterName=\"Strata-uat-eks-OwJIPjnj\",NodeName=*} MetricName=\"node_cpu_utilization\"', 'Average', 300)"
+>     },
+>     {
+>       "Id":"cpu_ci_alt",
+>       "Expression":"SEARCH('{ContainerInsights,ClusterName=\"Strata-uat-eks-OwJIPjnj\",NodeName=*} MetricName=\"node_cpu_utilization\"', 'Average', 300)"
+>     }
+>   ]' \
+>   --query 'MetricDataResults[].{Id:Id,Points:length(Timestamps)}'
 
-aws configure set region "$REGION"
-
-echo "== ensure log groups =="
-for LG in "$LG_APP" "$LG_HOST" "$LG_PERF"; do
-  aws logs create-log-group --log-group-name "$LG" 2>/dev/null || true
-  aws logs put-retention-policy --log-group-name "$LG" --retention-in-days 7 || true
-done
-
-echo "== create stream in performance =="
-aws logs create-log-stream --log-group-name "$LG_PERF" --log-stream-name "$STREAM" 2>/dev/null || true
-
-# helper: epoch millis
-now_ms() { echo $(( $(date +%s) * 1000 )); }
-
-# ===== build a few EMF samples =====
-T0=$(now_ms); T1=$((T0+1)); T2=$((T0+2)); T3=$((T0+3))
-
-# IMPORTANT: Namespace must NOT begin with AWS/ for custom metrics
-# We publish into "ContainerInsights" to mirror CI names/dimensions.
-cat > emf.jsonl <<EOF
-{"_aws":{"Timestamp":$T0,"CloudWatchMetrics":[{"Namespace":"ContainerInsights","Dimensions":[["ClusterName","NodeName"]],"Metrics":[{"Name":"node_cpu_utilization","Unit":"Percent"},{"Name":"node_memory_utilization","Unit":"Percent"},{"Name":"node_filesystem_utilization","Unit":"Percent"}]}]},"ClusterName":"$CLUSTER","NodeName":"demo-node-1","node_cpu_utilization":23.4,"node_memory_utilization":61.2,"node_filesystem_utilization":48.7}
-{"_aws":{"Timestamp":$T1,"CloudWatchMetrics":[{"Namespace":"ContainerInsights","Dimensions":[["ClusterName","NodeName"]],"Metrics":[{"Name":"node_cpu_utilization","Unit":"Percent"},{"Name":"node_memory_utilization","Unit":"Percent"},{"Name":"node_filesystem_utilization","Unit":"Percent"}]}]},"ClusterName":"$CLUSTER","NodeName":"demo-node-2","node_cpu_utilization":17.9,"node_memory_utilization":42.0,"node_filesystem_utilization":55.1}
-{"_aws":{"Timestamp":$T2,"CloudWatchMetrics":[{"Namespace":"ContainerInsights","Dimensions":[["ClusterName","Namespace"]],"Metrics":[{"Name":"pod_number_of_running_pods","Unit":"Count"}]}]},"ClusterName":"$CLUSTER","Namespace":"kube-system","pod_number_of_running_pods":42}
-{"_aws":{"Timestamp":$T3,"CloudWatchMetrics":[{"Namespace":"ContainerInsights","Dimensions":[["ClusterName","Namespace"]],"Metrics":[{"Name":"pod_number_of_running_pods","Unit":"Count"}]}]},"ClusterName":"$CLUSTER","Namespace":"default","pod_number_of_running_pods":15}
-EOF
-
-# Turn the JSON lines into the structure CloudWatch Logs expects
-cat > events.json <<EOF
+Error parsing parameter '--metric-data-queries': Invalid JSON:
 [
-  {"timestamp": $T0, "message": "$(sed -n '1p' emf.jsonl | tr -d '\n' )"},
-  {"timestamp": $T1, "message": "$(sed -n '2p' emf.jsonl | tr -d '\n' )"},
-  {"timestamp": $T2, "message": "$(sed -n '3p' emf.jsonl | tr -d '\n' )"},
-  {"timestamp": $T3, "message": "$(sed -n '4p' emf.jsonl | tr -d '\n' )"}
+    {
+      "Id":"cpu_ci",
+      "Expression":"SEARCH(AWS/ContainerInsights
+bash-5.2# START=$(date -u -d '2 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+bash-5.2# END=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+bash-5.2# 
+bash-5.2# # Try both namespaces; one will return datapoints
+bash-5.2# aws cloudwatch get-metric-data \
+>   --region us-east-1 \
+>   --start-time "$START" --end-time "$END" \
+>   --metric-data-queries '[
+>     {
+>       "Id":"cpu_ci",
+>       "Expression":"SEARCH(\"{AWS/ContainerInsights,ClusterName=\"\"Strata-uat-eks-OwJIPjnj\"\"} MetricName=\"\"node_cpu_utilization\"\"\", \"Average\", 300)"
+bash-5.2# START=$(date -u -d '2 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+bash-5.2# END=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+bash-5.2# 
+bash-5.2# cat > queries.json <<'JSON'
+> [
+>   {
+>     "Id": "cpu_ci",
+>     "Expression": "SEARCH('{AWS/ContainerInsights,ClusterName,Strata-uat-eks-OwJIPjnj,NodeName,*} MetricName=\"node_cpu_utilization\"', 'Average', 300)"
+>   },
+>   {
+>     "Id": "cpu_ci_alt",
+>     "Expression": "SEARCH('{ContainerInsights,ClusterName,Strata-uat-eks-OwJIPjnj,NodeName,*} MetricName=\"node_cpu_utilization\"', 'Average', 300)"
+>   }
+> ]
+> JSON
+bash-5.2# 
+bash-5.2# aws cloudwatch get-metric-data \
+>   --region us-east-1 \
+>   --start-time "$START" --end-time "$END" \
+>   --metric-data-queries file://queries.json \
+>   --query 'MetricDataResults[].{Id:Id,Series:length(Label),Points:length(Timestamps)}'
+[]
+bash-5.2# 
+bash-5.2# 
+bash-5.2# 
+bash-5.2# 
+bash-5.2# CLUSTER="Strata-uat-eks-OwJIPjnj"
+bash-5.2# 
+bash-5.2# # Try AWS/ContainerInsights first, fetch one NodeName
+bash-5.2# NODE=$(aws cloudwatch list-metrics \
+>   --region us-east-1 \
+>   --namespace AWS/ContainerInsights \
+>   --metric-name node_cpu_utilization \
+>   --dimensions Name=ClusterName,Value="$CLUSTER" Name=NodeName \
+>   --query 'Metrics[0].Dimensions[?Name==`NodeName`].Value' \
+>   --output text 2>/dev/null)
+bash-5.2# 
+bash-5.2# NS="AWS/ContainerInsights"
+bash-5.2# if [ -z "$NODE" ] || [ "$NODE" = "None" ]; then
+>   NS="ContainerInsights"
+>   NODE=$(aws cloudwatch list-metrics \
+>     --region us-east-1 \
+>     --namespace "$NS" \
+bash-5.2# # Make sure kubectl is pointed at Strata-uat-eks-OwJIPjnj
+bash-5.2# kubectl config current-context
+error: current-context is not set
+bash-5.2# kubectl get nodes -o wide
+E1018 16:55:36.387170     302 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: Get \"http://localhost:8080/api?timeout=32s\": dial tcp 127.0.0.1:8080: connect: connection refused"
+E1018 16:55:36.388667     302 memcache.go:265] "Unhandled Error" err="couldn't get current server API group list: Get \"http://localhost:8080/api?timeout=32s\": dial tcp 127.0.0.1:8080: connect: connection refused"
+bash-5.2# set -euo pipefail
+bash-5.2# 
+bash-5.2# # ===== config =====
+bash-5.2# REGION="us-east-1"
+bash-5.2# CLUSTER="Strata-uat-eks-OwJIPjnj"
+bash-5.2# DASHBOARD_NAME="Strata-uat-eks-OwJIPjnj-cloudwatch"
+bash-5.2# LG_APP="/aws/containerinsights/$CLUSTER/application"
+
+ bash-5.2# LG_HOST="/aws/containerinsights/$CLUSTER/host"
+bash-5.2# LG_PERF="/aws/containerinsights/$CLUSTER/performance"
+bash-5.2# STREAM="bootstrap-$(date -u +%Y%m%dT%H%M%S)"
+bash-5.2# 
+bash-5.2# aws configure set region "$REGION"
+bash-5.2# 
+bash-5.2# echo "== ensure log groups =="
+== ensure log groups ==
+bash-5.2# for LG in "$LG_APP" "$LG_HOST" "$LG_PERF"; do
+>   aws logs create-log-group --log-group-name "$LG" 2>/dev/null || true
+>   aws logs put-retention-policy --log-group-name "$LG" --retention-in-days 7 || true
+> done
+bash-5.2# 
+bash-5.2# echo "== create stream in performance =="
+== create stream in performance ==
+bash-5.2# aws logs create-log-stream --log-group-name "$LG_PERF" --log-stream-name "$STREAM" 2>/dev/null || true
+
+bash-5.2# 
+bash-5.2# # helper: epoch millis
+bash-5.2# now_ms() { echo $(( $(date +%s) * 1000 )); }
+bash-5.2# 
+bash-5.2# # ===== build a few EMF samples =====
+bash-5.2# T0=$(now_ms); T1=$((T0+1)); T2=$((T0+2)); T3=$((T0+3))
+bash-5.2# 
+bash-5.2# # IMPORTANT: Namespace must NOT begin with AWS/ for custom metrics
+bash-5.2# # We publish into "ContainerInsights" to mirror CI names/dimensions.
+bash-5.2# cat > emf.jsonl <<EOF
+> {"_aws":{"Timestamp":$T0,"CloudWatchMetrics":[{"Namespace":"ContainerInsights","Dimensions":[["ClusterName","NodeName"]],"Metrics":[{"Name":"node_cpu_utilization","Unit":"Percent"},{"Name":"node_memory_utilization","Unit":"Percent"},{"Name":"node_filesystem_utilization","Unit":"Percent"}]}]},"ClusterName":"$CLUSTER","NodeName":"demo-node-1","node_cpu_utilization":23.4,"node_memory_utilization":61.2,"node_filesystem_utilization":48.7}
+> {"_aws":{"Timestamp":$T1,"CloudWatchMetrics":[{"Namespace":"ContainerInsights","Dimensions":[["ClusterName","NodeName"]],"Metrics":[{"Name":"node_cpu_utilization","Unit":"Percent"},{"Name":"node_memory_utilization","Unit":"Percent"},{"Name":"node_filesystem_utilization","Unit":"Percent"}]}]},"ClusterName":"$CLUSTER","NodeName":"demo-node-2","node_cpu_utilization":17.9,"node_memory_utilization":42.0,"node_filesystem_utilization":55.1}
+> {"_aws":{"Timestamp":$T2,"CloudWatchMetrics":[{"Namespace":"ContainerInsights","Dimensions":[["ClusterName","Namespace"]],"Metrics":[{"Name":"pod_number_of_running_pods","Unit":"Count"}]}]},"ClusterName":"$CLUSTER","Namespace":"kube-system","pod_number_of_running_pods":42}
+> {"_aws":{"Timestamp":$T3,"CloudWatchMetrics":[{"Namespace":"ContainerInsights","Dimensions":[["ClusterName","Namespace"]],"Metrics":[{"Name":"pod_number_of_running_pods","Unit":"Count"}]}]},"ClusterName":"$CLUSTER","Namespace":"default","pod_number_of_running_pods":15}
+> EOF
+bash-5.2# 
+bash-5.2# # Turn the JSON lines into the structure CloudWatch Logs expects
+bash-5.2# cat > events.json <<EOF
+> [
+>   {"timestamp": $T0, "message": "$(sed -n '1p' emf.jsonl | tr -d '\n' )"},
+>   {"timestamp": $T1, "message": "$(sed -n '2p' emf.jsonl | tr -d '\n' )"},
+>   {"timestamp": $T2, "message": "$(sed -n '3p' emf.jsonl | tr -d '\n' )"},
+>   {"timestamp": $T3, "message": "$(sed -n '4p' emf.jsonl | tr -d '\n' )"}
+> ]
+> EOF
+bash-5.2# 
+bash-5.2# echo "== put EMF events =="
+== put EMF events ==
+bash-5.2# aws logs put-log-events \
+>   --log-group-name "$LG_PERF" \
+>   --log-stream-name "$STREAM" \
+>   --log-events file://events.json >/dev/null
+
+Error parsing parameter '--log-events': Invalid JSON: Expecting ',' delimiter: line 2 column 46 (char 47)
+JSON received: [
+  {"timestamp": 1760806736000, "message": "{"_aws":{"Timestamp":1760806736000,"CloudWatchMetrics":[{"Namespace":"ContainerInsights","Dimensions":[["ClusterName","NodeName"]],"Metrics":[{"Name":"node_cpu_utilization","Unit":"Percent"},{"Name":"node_memory_utilization","Unit":"Percent"},{"Name":"node_filesystem_utilization","Unit":"Percent"}]}]},"ClusterName":"Strata-uat-eks-OwJIPjnj","NodeName":"demo-node-1","node_cpu_utilization":23.4,"node_memory_utilization":61.2,"node_filesystem_utilization":48.7}"},
+  {"timestamp": 1760806736001, "message": "{"_aws":{"Timestamp":1760806736001,"CloudWatchMetrics":[{"Namespace":"ContainerInsights","Dimensions":[["ClusterName","NodeName"]],"Metrics":[{"Name":"node_cpu_utilization","Unit":"Percent"},{"Name":"node_memory_utilization","Unit":"Percent"},{"Name":"node_filesystem_utilization","Unit":"Percent"}]}]},"ClusterName":"Strata-uat-eks-OwJIPjnj","NodeName":"demo-node-2","node_cpu_utilization":17.9,"node_memory_utilization":42.0,"node_filesystem_utilization":55.1}"},
+  {"timestamp": 1760806736002, "message": "{"_aws":{"Timestamp":1760806736002,"CloudWatchMetrics":[{"Namespace":"ContainerInsights","Dimensions":[["ClusterName","Namespace"]],"Metrics":[{"Name":"pod_number_of_running_pods","Unit":"Count"}]}]},"ClusterName":"Strata-uat-eks-OwJIPjnj","Namespace":"kube-system","pod_number_of_running_pods":42}"},
+  {"timestamp": 1760806736003, "message": "{"_aws":{"Timestamp":1760806736003,"CloudWatchMetrics":[{"Namespace":"ContainerInsights","Dimensions":[["ClusterName","Namespace"]],"Metrics":[{"Name":"pod_number_of_running_pods","Unit":"Count"}]}]},"ClusterName":"Strata-uat-eks-OwJIPjnj","Namespace":"default","pod_number_of_running_pods":15}"}
 ]
-EOF
 
-echo "== put EMF events =="
-aws logs put-log-events \
-  --log-group-name "$LG_PERF" \
-  --log-stream-name "$STREAM" \
-  --log-events file://events.json >/dev/null
-
-echo "== verify one EMF message =="
-aws logs filter-log-events \
-  --log-group-name "$LG_PERF" \
-  --limit 1 \
-  --query 'events[0].message' \
-  --output text
-
-# ===== update dashboard namespace to ContainerInsights =====
-if [ -f dashboard.json ]; then
-  sed -i 's/"AWS\/ContainerInsights"/"ContainerInsights"/g' dashboard.json
-  aws cloudwatch put-dashboard \
-    --region "$REGION" \
-    --dashboard-name "$DASHBOARD_NAME" \
-    --dashboard-body file://dashboard.json >/dev/null || true
-fi
-
-# ===== query the metrics back so you know they exist =====
-START=$(date -u -d '30 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
-END=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-
-cat > queries.json <<'JSON'
-[
-  {
-    "Id": "cpu",
-    "Expression": "SEARCH('{ContainerInsights,ClusterName=\"Strata-uat-eks-OwJIPjnj\",NodeName,*} MetricName=\"node_cpu_utilization\"', 'Average', 300)"
-  },
-  {
-    "Id": "pods",
-    "Expression": "SEARCH('{ContainerInsights,ClusterName=\"Strata-uat-eks-OwJIPjnj\",Namespace,*} MetricName=\"pod_number_of_running_pods\"', 'Sum', 300)"
-  }
-]
-JSON
-
-echo "== metric probe (should show Points > 0) =="
-aws cloudwatch get-metric-data \
-  --start-time "$START" --end-time "$END" \
-  --metric-data-queries file://queries.json \
-  --query 'MetricDataResults[].{Id:Id,Series:length(Label),Points:length(Timestamps)}'
+~ $ 
+~ $ ^C
