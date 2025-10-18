@@ -1,38 +1,107 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+### ---- config ----
+REGION="us-east-1"
+CLUSTER="Strata-uat-eks-OwJIPjnj"
+DASHBOARD_NAME="Strata-uat-eks-OwJIPjnj-cloudwatch"
+NS="ContainerInsights"   # custom metrics must NOT start with AWS/
+PERIOD=300
+### ---------------
+
+echo "== Fix any bad endpoints and set region =="
+unset AWS_ENDPOINT_URL AWS_CLOUDWATCH_ENDPOINT AWS_MONITORING_ENDPOINT
+aws configure set region "$REGION"
+aws sts get-caller-identity >/dev/null
+
+echo "== Seed a few datapoints so the charts have something to read =="
+aws cloudwatch put-metric-data --region "$REGION" --namespace "$NS" --metric-data "[
+  {\"MetricName\":\"node_cpu_utilization\",\"Dimensions\":[
+      {\"Name\":\"ClusterName\",\"Value\":\"$CLUSTER\"},
+      {\"Name\":\"NodeName\",\"Value\":\"demo-node-1\"}
+    ],\"Unit\":\"Percent\",\"Value\":23.4},
+  {\"MetricName\":\"pod_number_of_running_pods\",\"Dimensions\":[
+      {\"Name\":\"ClusterName\",\"Value\":\"$CLUSTER\"},
+      {\"Name\":\"Namespace\",\"Value\":\"kube-system\"}
+    ],\"Unit\":\"Count\",\"Value\":42}
+]"
+
+echo "== Build metric-data-queries JSON (with real values expanded) =="
 START=$(date -u -d '15 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
 END=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-aws cloudwatch get-metric-data --region "$REGION" \
+cat > mdq.json <<EOF
+[
+  {
+    "Id": "cpu1",
+    "MetricStat": {
+      "Metric": {
+        "Namespace": "$NS",
+        "MetricName": "node_cpu_utilization",
+        "Dimensions": [
+          {"Name":"ClusterName","Value":"$CLUSTER"},
+          {"Name":"NodeName","Value":"demo-node-1"}
+        ]
+      },
+      "Period": $PERIOD,
+      "Stat": "Average"
+    }
+  },
+  {
+    "Id": "pods",
+    "MetricStat": {
+      "Metric": {
+        "Namespace": "$NS",
+        "MetricName": "pod_number_of_running_pods",
+        "Dimensions": [
+          {"Name":"ClusterName","Value":"$CLUSTER"},
+          {"Name":"Namespace","Value":"kube-system"}
+        ]
+      },
+      "Period": $PERIOD,
+      "Stat": "Sum"
+    }
+  }
+]
+EOF
+
+echo "== Query recent datapoints (should be non-zero counts) =="
+aws cloudwatch get-metric-data \
+  --region "$REGION" \
   --start-time "$START" --end-time "$END" \
-  --metric-data-queries '[
-    {
-      "Id":"cpu1",
-      "MetricStat":{
-        "Metric":{
-          "Namespace":"ContainerInsights",
-          "MetricName":"node_cpu_utilization",
-          "Dimensions":[
-            {"Name":"ClusterName","Value":"'"$CLUSTER"'"},
-            {"Name":"NodeName","Value":"demo-node-1"}
-          ]
-        },
-        "Period":300,
-        "Stat":"Average"
+  --metric-data-queries file://mdq.json \
+  --query 'MetricDataResults[].{Id:Id,Points:length(Timestamps)}'
+
+echo "== Create/Update a simple dashboard so you can SEE the data now =="
+cat > dashboard.json <<EOF
+{
+  "widgets": [
+    { "type":"text","x":0,"y":0,"width":24,"height":2,
+      "properties":{"markdown":"# EKS – $CLUSTER (CloudWatch)\\nSeeded sample data to verify the pipeline."}
+    },
+    { "type":"metric","x":0,"y":2,"width":12,"height":6,
+      "properties":{
+        "region":"$REGION","title":"Node CPU (demo-node-1) – Average",
+        "view":"timeSeries","stat":"Average","period":$PERIOD,
+        "yAxis":{"left":{"min":0,"max":100,"label":"%"}},
+        "metrics":[["$NS","node_cpu_utilization","ClusterName","$CLUSTER","NodeName","demo-node-1"]]
       }
     },
-    {
-      "Id":"pods",
-      "MetricStat":{
-        "Metric":{
-          "Namespace":"ContainerInsights",
-          "MetricName":"pod_number_of_running_pods",
-          "Dimensions":[
-            {"Name":"ClusterName","Value":"'"$CLUSTER"'"},
-            {"Name":"Namespace","Value":"kube-system"}
-          ]
-        },
-        "Period":300,
-        "Stat":"Sum"
+    { "type":"metric","x":12,"y":2,"width":12,"height":6,
+      "properties":{
+        "region":"$REGION","title":"Running Pods (kube-system) – Sum",
+        "view":"timeSeries","stat":"Sum","period":$PERIOD,
+        "metrics":[["$NS","pod_number_of_running_pods","ClusterName","$CLUSTER","Namespace","kube-system"]]
       }
     }
-  ]' \
-  --query 'MetricDataResults[].{Id:Id,Points:length(Timestamps)}'
+  ]
+}
+EOF
+
+aws cloudwatch put-dashboard \
+  --region "$REGION" \
+  --dashboard-name "$DASHBOARD_NAME" \
+  --dashboard-body file://dashboard.json >/dev/null
+
+echo "== Done =="
+echo "Open CloudWatch > Dashboards > $DASHBOARD_NAME (set time range to last 15m)."
