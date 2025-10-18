@@ -1,118 +1,15 @@
-cat > dashboard.json <<'JSON'
-{
-  "widgets": [
-    {
-      "type": "text", "x": 0, "y": 0, "width": 24, "height": 2,
-      "properties": {
-        "markdown": "# EKS – Strata-uat-eks-OwJIPjnj (CloudWatch)\nContainer Insights cluster health, capacity and workload state."
-      }
-    },
+# 1) Do we have node CPU with NodeName dimension?
+aws cloudwatch list-metrics \
+  --region us-east-1 \
+  --namespace AWS/ContainerInsights \
+  --metric-name node_cpu_utilization \
+  --dimensions Name=ClusterName,Value=Strata-uat-eks-OwJIPjnj Name=NodeName,Value="*" \
+  --max-items 5
 
-    /* ===== Cluster health (per-node lines) ===== */
-    { "type":"metric","x":0,"y":2,"width":8,"height":6,
-      "properties":{
-        "region":"us-east-1","title":"CPU utilization (%) by node",
-        "view":"timeSeries","stat":"Average","period":300,
-        "yAxis":{"left":{"min":0,"max":100,"label":"%"}},
-        "metrics":[["AWS/ContainerInsights","node_cpu_utilization","ClusterName","Strata-uat-eks-OwJIPjnj","NodeName","*"]]
-      }
-    },
-    { "type":"metric","x":8,"y":2,"width":8,"height":6,
-      "properties":{
-        "region":"us-east-1","title":"Memory utilization (%) by node",
-        "view":"timeSeries","stat":"Average","period":300,
-        "yAxis":{"left":{"min":0,"max":100,"label":"%"}},
-        "metrics":[["AWS/ContainerInsights","node_memory_utilization","ClusterName","Strata-uat-eks-OwJIPjnj","NodeName","*"]]
-      }
-    },
-    { "type":"metric","x":16,"y":2,"width":8,"height":6,
-      "properties":{
-        "region":"us-east-1","title":"Filesystem utilization (%) by node",
-        "view":"timeSeries","stat":"Average","period":300,
-        "yAxis":{"left":{"min":0,"max":100,"label":"%"}},
-        "metrics":[["AWS/ContainerInsights","node_filesystem_utilization","ClusterName","Strata-uat-eks-OwJIPjnj","NodeName","*"]]
-      }
-    },
-
-    /* ===== Pod phase / counts ===== */
-    { "type":"metric","x":0,"y":8,"width":12,"height":6,
-      "properties":{
-        "region":"us-east-1","title":"Pods by phase (cluster)",
-        "view":"timeSeries","stat":"Sum","period":300,
-        "metrics":[
-          ["AWS/ContainerInsights","pod_number_of_running_pods","ClusterName","Strata-uat-eks-OwJIPjnj"],
-          [".","pod_number_of_pending_pods",".","Strata-uat-eks-OwJIPjnj"],
-          [".","pod_number_of_failed_pods",".","Strata-uat-eks-OwJIPjnj"],
-          [".","pod_number_of_unknown_pods",".","Strata-uat-eks-OwJIPjnj"],
-          [".","pod_number_of_succeeded_pods",".","Strata-uat-eks-OwJIPjnj"]
-        ]
-      }
-    },
-    { "type":"metric","x":12,"y":8,"width":12,"height":6,
-      "properties":{
-        "region":"us-east-1","title":"Running pods by namespace",
-        "view":"timeSeries","stat":"Sum","period":300,
-        "metrics":[["AWS/ContainerInsights","pod_number_of_running_pods","ClusterName","Strata-uat-eks-OwJIPjnj","Namespace","*"]]
-      }
-    },
-
-    /* ===== Nodes: network & disk ===== */
-    { "type":"metric","x":0,"y":14,"width":12,"height":6,
-      "properties":{
-        "region":"us-east-1","title":"Network bytes (rx/tx) per node",
-        "view":"timeSeries","stat":"Sum","period":300,
-        "metrics":[
-          ["AWS/ContainerInsights","node_network_rx_bytes","ClusterName","Strata-uat-eks-OwJIPjnj","NodeName","*"],
-          [".","node_network_tx_bytes",".","Strata-uat-eks-OwJIPjnj","NodeName","*"]
-        ]
-      }
-    },
-    { "type":"metric","x":12,"y":14,"width":12,"height":6,
-      "properties":{
-        "region":"us-east-1","title":"Disk IO (read/write bytes) per node",
-        "view":"timeSeries","stat":"Sum","period":300,
-        "metrics":[
-          ["AWS/ContainerInsights","node_diskio_read_bytes","ClusterName","Strata-uat-eks-OwJIPjnj","NodeName","*"],
-          [".","node_diskio_write_bytes",".","Strata-uat-eks-OwJIPjnj","NodeName","*"]
-        ]
-      }
-    },
-
-    /* ===== Containers ===== */
-    { "type":"metric","x":0,"y":20,"width":12,"height":6,
-      "properties":{
-        "region":"us-east-1","title":"Container CPU utilization (%) by container",
-        "view":"timeSeries","stat":"Average","period":300,
-        "yAxis":{"left":{"min":0,"max":100,"label":"%"}},
-        "metrics":[["AWS/ContainerInsights","container_cpu_utilization","ClusterName","Strata-uat-eks-OwJIPjnj","ContainerName","*"]]
-      }
-    },
-    { "type":"metric","x":12,"y":20,"width":12,"height":6,
-      "properties":{
-        "region":"us-east-1","title":"Container Memory utilization (%) by container",
-        "view":"timeSeries","stat":"Average","period":300,
-        "yAxis":{"left":{"min":0,"max":100,"label":"%"}},
-        "metrics":[["AWS/ContainerInsights","container_memory_utilization","ClusterName","Strata-uat-eks-OwJIPjnj","ContainerName","*"]]
-      }
-    },
-
-    /* ===== Pod distribution by node ===== */
-    { "type":"metric","x":0,"y":26,"width":12,"height":6,
-      "properties":{
-        "region":"us-east-1","title":"Pods running by node",
-        "view":"timeSeries","stat":"Sum","period":300,
-        "metrics":[["AWS/ContainerInsights","pod_number_of_running_pods","ClusterName","Strata-uat-eks-OwJIPjnj","NodeName","*"]]
-      }
-    },
-
-    /* ===== Restarts by pod (if agent version emits it) ===== */
-    { "type":"metric","x":12,"y":26,"width":12,"height":6,
-      "properties":{
-        "region":"us-east-1","title":"Container restarts by pod",
-        "view":"timeSeries","stat":"Sum","period":300,
-        "metrics":[["AWS/ContainerInsights","container_restart_count","ClusterName","Strata-uat-eks-OwJIPjnj","PodName","*"]]
-      }
-    }
-  ]
-}
-JSON
+# 2) Running pods by Namespace?
+aws cloudwatch list-metrics \
+  --region us-east-1 \
+  --namespace AWS/ContainerInsights \
+  --metric-name pod_number_of_running_pods \
+  --dimensions Name=ClusterName,Value=Strata-uat-eks-OwJIPjnj Name=Namespace,Value="*" \
+  --max-items 5
