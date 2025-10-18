@@ -1,22 +1,59 @@
-bash-5.2# 
-bash-5.2# cat > queries.json <<'JSON'
-> [
->   {
->     "Id": "cpu_ci",
->     "Expression": "SEARCH('{AWS/ContainerInsights,ClusterName=\"Strata-uat-eks-OwJIPjnj\",NodeName=*} MetricName=\"node_cpu_utilization\"', 'Average', 300)"
->   },
->   {
->     "Id": "cpu_ci_alt",
->     "Expression": "SEARCH('{ContainerInsights,ClusterName=\"Strata-uat-eks-OwJIPjnj\",NodeName=*} MetricName=\"node_cpu_utilization\"', 'Average', 300)"
->   }
-> ]
-> JSON
-bash-5.2# 
-bash-5.2# aws cloudwatch get-metric-data \
->   --region us-east-1 \
->   --start-time "$START" --end-time "$END" \
->   --metric-data-queries file://queries.json \
->   --query 'MetricDataResults[].{Id:Id,Points:length(Timestamps)}'
+START=$(date -u -d '2 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+END=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-An error occurred (ValidationError) when calling the GetMetricData operation: Invalid SEARCH parameter: {AWS/ContainerInsights,ClusterName="Strata-uat-eks-OwJIPjnj",NodeName=*} MetricName="node_cpu_utilization"
-bash-5.2# 
+cat > queries.json <<'JSON'
+[
+  {
+    "Id": "cpu_ci",
+    "Expression": "SEARCH('{AWS/ContainerInsights,ClusterName,Strata-uat-eks-OwJIPjnj,NodeName,*} MetricName=\"node_cpu_utilization\"', 'Average', 300)"
+  },
+  {
+    "Id": "cpu_ci_alt",
+    "Expression": "SEARCH('{ContainerInsights,ClusterName,Strata-uat-eks-OwJIPjnj,NodeName,*} MetricName=\"node_cpu_utilization\"', 'Average', 300)"
+  }
+]
+JSON
+
+aws cloudwatch get-metric-data \
+  --region us-east-1 \
+  --start-time "$START" --end-time "$END" \
+  --metric-data-queries file://queries.json \
+  --query 'MetricDataResults[].{Id:Id,Series:length(Label),Points:length(Timestamps)}'
+
+
+
+
+CLUSTER="Strata-uat-eks-OwJIPjnj"
+
+# Try AWS/ContainerInsights first, fetch one NodeName
+NODE=$(aws cloudwatch list-metrics \
+  --region us-east-1 \
+  --namespace AWS/ContainerInsights \
+  --metric-name node_cpu_utilization \
+  --dimensions Name=ClusterName,Value="$CLUSTER" Name=NodeName \
+  --query 'Metrics[0].Dimensions[?Name==`NodeName`].Value' \
+  --output text 2>/dev/null)
+
+NS="AWS/ContainerInsights"
+if [ -z "$NODE" ] || [ "$NODE" = "None" ]; then
+  NS="ContainerInsights"
+  NODE=$(aws cloudwatch list-metrics \
+    --region us-east-1 \
+    --namespace "$NS" \
+    --metric-name node_cpu_utilization \
+    --dimensions Name=ClusterName,Value="$CLUSTER" Name=NodeName \
+    --query 'Metrics[0].Dimensions[?Name==`NodeName`].Value' \
+    --output text 2>/dev/null)
+fi
+
+echo "Namespace=$NS  NodeName=$NODE"
+
+aws cloudwatch get-metric-data \
+  --region us-east-1 \
+  --start-time "$START" --end-time "$END" \
+  --metric-data-queries "[
+    {\"Id\":\"m1\",
+     \"MetricStat\":{\"Metric\":{\"Namespace\":\"$NS\",\"MetricName\":\"node_cpu_utilization\",
+       \"Dimensions\":[{\"Name\":\"ClusterName\",\"Value\":\"$CLUSTER\"},{\"Name\":\"NodeName\",\"Value\":\"$NODE\"}]},
+       \"Period\":300,\"Stat\":\"Average\"}}]" \
+  --query 'MetricDataResults[0].Timestamps | length(@)'
