@@ -1,35 +1,21 @@
 START=$(date -u -d '2 hours ago' +%Y-%m-%dT%H:%M:%SZ)
 END=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-aws cloudwatch get-metric-data \
-  --region us-east-1 \
-  --start-time "$START" --end-time "$END" \
-  --metric-data-queries '[
-    {
-      "Id":"cpu_ci",
-      "Expression":"SEARCH('{AWS/ContainerInsights,ClusterName=\"Strata-uat-eks-OwJIPjnj\",NodeName=*} MetricName=\"node_cpu_utilization\"', 'Average', 300)"
-    },
-    {
-      "Id":"cpu_ci_alt",
-      "Expression":"SEARCH('{ContainerInsights,ClusterName=\"Strata-uat-eks-OwJIPjnj\",NodeName=*} MetricName=\"node_cpu_utilization\"', 'Average', 300)"
-    }
-  ]' \
-  --query 'MetricDataResults[].{Id:Id,Points:length(Timestamps)}'
-START=$(date -u -d '2 hours ago' +%Y-%m-%dT%H:%M:%SZ)
-END=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+cat > queries.json <<'JSON'
+[
+  {
+    "Id": "cpu_ci",
+    "Expression": "SEARCH('{AWS/ContainerInsights,ClusterName=\"Strata-uat-eks-OwJIPjnj\",NodeName=*} MetricName=\"node_cpu_utilization\"', 'Average', 300)"
+  },
+  {
+    "Id": "cpu_ci_alt",
+    "Expression": "SEARCH('{ContainerInsights,ClusterName=\"Strata-uat-eks-OwJIPjnj\",NodeName=*} MetricName=\"node_cpu_utilization\"', 'Average', 300)"
+  }
+]
+JSON
 
-# Try both namespaces; one will return datapoints
 aws cloudwatch get-metric-data \
   --region us-east-1 \
   --start-time "$START" --end-time "$END" \
-  --metric-data-queries '[
-    {
-      "Id":"cpu_ci",
-      "Expression":"SEARCH(\"{AWS/ContainerInsights,ClusterName=\"\"Strata-uat-eks-OwJIPjnj\"\"} MetricName=\"\"node_cpu_utilization\"\"\", \"Average\", 300)"
-    },
-    {
-      "Id":"cpu_ci_alt",
-      "Expression":"SEARCH(\"{ContainerInsights,ClusterName=\"\"Strata-uat-eks-OwJIPjnj\"\"} MetricName=\"\"node_cpu_utilization\"\"\", \"Average\", 300)"
-    }
-  ]' \
+  --metric-data-queries file://queries.json \
   --query 'MetricDataResults[].{Id:Id,Points:length(Timestamps)}'
