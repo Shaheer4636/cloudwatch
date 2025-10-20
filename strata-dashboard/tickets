@@ -1,0 +1,13 @@
+Strata – NonProd
+
+Create CloudWatch dashboard equivalent for Datadog APM View (Strata-NonProd).
+
+Create CloudWatch dashboard equivalent for Datadog Logs Explorer (Strata-NonProd).
+
+Create CloudWatch dashboard equivalent for Datadog Traces View (Strata-NonProd).
+
+Create CloudWatch dashboard equivalent for Datadog RabbitMQ Dashboard (Strata-NonProd).
+
+Migrate Datadog dashboards for EKS Cluster 1 – Strata-NonProd to CloudWatch.
+
+Migrate Datadog dashboards for EKS Cluster 2 – Strata-NonProd to CloudWatch.
