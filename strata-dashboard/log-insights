@@ -1,3 +1,7 @@
-ConnectionCount
-ChannelCount	
-ConsumerCount	
+NetworkIn	
+NetworkOut	
+
+
+RabbitMQFdUsed	
+RabbitMQIOWriteAverageTime	
+RabbitMQIOReadAverageTime
