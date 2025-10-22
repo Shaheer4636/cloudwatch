@@ -1,3 +1,24 @@
-/Strata/uat/MongoDB/mongod
-/Strata/uat/MongoDB/secure
-/aws/amazonmq/broker/b-2fe382c7-0e0a-4a8d-bad*
+sum:aws.amazonmq.ack_rate{*}.as_count()
+
+Storage limit usage per broker (%)
+
+
+
+avg:aws.amazonmq.enqueue_time{*}
+sum:aws.amazonmq.publish_rate{*}.as_count()
+
+
+
+Total messages sent per destination
+
+
+
+Producers per destination
+Total messages received per destination
+
+Subscribed consumers per destination
+
+
+
+
+
