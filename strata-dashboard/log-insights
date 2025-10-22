@@ -5,3 +5,6 @@ NetworkOut
 RabbitMQFdUsed	
 RabbitMQIOWriteAverageTime	
 RabbitMQIOReadAverageTime
+
+
+Avg memory limit usage per destination
