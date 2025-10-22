@@ -1,3 +1,178 @@
-While working on the migration from Datadog to AWS CloudWatch, we realized that the dashboards alone don’t give us enough detail to identify and compare the underlying resources.
+nice—this DD JSON is super clear. Below is a **widget-by-widget mapping** to **CloudWatch (CW) console** so you can recreate everything. I’m using the exact DD metric names you pasted on the left, and the CW metric you must pick on the right (plus any math/stat notes).
 
-To make this process smoother and more accurate, could you please share the queries, filters, or any detailed configurations used in those dashboards? Having that information would really help us verify and align the metrics properly in CloudWatch.
+---
+
+# Quick namespace + where to click
+
+* **Broker-level:** `CloudWatch → Dashboards → Add widget → Metrics → AmazonMQ → Broker Metrics`
+* **Per-destination (queues/topics):** `… → AmazonMQ → Queue Metrics by Virtual Host`
+* **Stats:** When DD says `sum:… .as_count()` → in CW choose **Statistic = Sum**.
+  When DD says `avg:…` → choose **Statistic = Average**.
+
+---
+
+# 1) “Total producers” (query value)
+
+**DD:** `sum:aws.amazonmq.producer_count.maximum{$scope}.as_count()`
+**CW:** There is **no broker-level ProducersCount**. Build it by summing **per-destination**:
+
+* Metrics tab → **Queue Metrics by Virtual Host** → select **ProducersCount** for all relevant Destinations (or a filterable set) → **Add math** → `SUM([m1,m2,…])` → show only the expression → widget type **Number**.
+
+  * Period: 1m (or 5m), Stat: **Average** on each series (then SUM).
+
+> If you truly need a single “total producers” across *all* destinations, this math widget is the way to mirror DD.
+
+---
+
+# 2) “Total consumers” (query value)
+
+**DD:** `sum:aws.amazonmq.consumer_count.maximum{$scope}.as_count()` **or** `sum:aws.amazonmq.total_consumer_count…` (you use both styles elsewhere)
+**CW:** Two options (pick one):
+
+* **Broker total:** **Broker Metrics → ConsumerCount** (this already represents total at broker) → **Number** widget, Stat **Average**.
+* **Sum per destination:** **Queue Metrics by Virtual Host → ConsumersCount** (multiple Destinations) → **Add math**: `SUM([…])` → **Number**.
+
+---
+
+# 3) “CPU utilization per broker (%)”
+
+**DD:** `avg:aws.amazonmq.cpu_utilization{$scope,$broker} by {broker}`
+**CW:** **Broker Metrics → SystemCpuUtilization** (Average) → **Line**.
+
+---
+
+# 4) “Queue size per queue (messages)”
+
+**DD:** `sum:aws.amazonmq.queue_size{$scope,$broker,$queue,$topic} by {queue}.as_count()`
+**CW (ActiveMQ classic):** **Queue Metrics by Virtual Host → QueueSize** (Sum) → **Bars**.
+**CW (RabbitMQ):** there’s **no QueueSize**. Mirror via:
+
+* **MessageReadyCount + MessageUnacknowledgedCount** (per queue) → **Add math**: `m1 + m2` → Bars (group by Destination).
+  (Both live under **Queue Metrics by Virtual Host** as **MessagesReady**/**MessagesUnacked** in DD terms; in CW you’ll typically have **MessageReadyCount** / **MessageUnacknowledgedCount**. If per-destination versions aren’t exposed for your engine, use the closest per-destination counters available.)
+
+---
+
+# 5) “Heap usage per broker (%)”
+
+**DD:** `avg:aws.amazonmq.heap_usage{$scope,$broker}`
+**CW (ActiveMQ classic):** **Broker Metrics → HeapUsage** (Average) → **Line**.
+**CW (RabbitMQ):** no Java heap; **skip** (or replace with **RabbitMQMemUsed/MemLimit** %).
+
+* To emulate a **memory %** widget for RabbitMQ: add **RabbitMQMemUsed (Avg)** and **RabbitMQMemLimit (Avg)** → **Add math**: `(m1/m2)*100` → **Line**.
+
+---
+
+# 6) “Total messages sent per destination”
+
+**DD:** `sum:aws.amazonmq.enqueue_count{…} by {queue/topic}.as_count()`
+**CW:** **Queue Metrics by Virtual Host → MessagesSent** (Sum) → **Bars** (multi-series per Destination).
+
+---
+
+# 7) “Total messages received per destination”
+
+**DD:** `sum:aws.amazonmq.dequeue_count{…} by {queue/topic}.as_count()`
+**CW:** **Queue Metrics by Virtual Host → MessagesReceived** (Sum) → **Bars**.
+
+---
+
+# 8) “Storage limit usage per broker (%)”
+
+**DD:** `avg:aws.amazonmq.store_percent_usage{…} by {broker}`
+**CW (ActiveMQ classic):** **Broker Metrics → StorageUsedPercentage** (Average) → **Area/Line**.
+**CW (RabbitMQ):** build from disk limits:
+
+* **RabbitMQDiskFreeLimit (Avg)** = m1, **RabbitMQDiskFree (Avg)** = m2 → **Add math**: `(1 - (m2/m1))*100` → label **Disk Utilization %**.
+
+---
+
+# 9) “Network in/out per broker (bytes)”
+
+**DD:** `avg:aws.amazonmq.network_in/out{…} by {broker}`
+**CW:** **Broker Metrics → NetworkIn / NetworkOut** (Average) → **Line** (put both in one widget).
+
+---
+
+# 10) “Expired count per destination (messages)”
+
+**DD:** `sum:aws.amazonmq.expired_count{…} by {topic/queue}.as_count()`
+**CW:** **Queue Metrics by Virtual Host → ExpiredCount** (Sum) → **Bars**.
+
+---
+
+# 11) “Subscribed consumers per destination”
+
+**DD:** `sum:aws.amazonmq.consumer_count{…} by {topic/queue}.as_count()`
+**CW:** **Queue Metrics by Virtual Host → ConsumersCount** (Average) → **Bars** (or **Stacked line**).
+
+---
+
+# 12) “Producers per destination”
+
+**DD:** `sum:aws.amazonmq.producer_count{…} by {topic/queue}.as_count()`
+**CW:** **Queue Metrics by Virtual Host → ProducersCount** (Average) → Bars/Stacked line.
+
+---
+
+# 13) “Clean shutdown” (journal files for fast recovery)
+
+**DD:** `max:aws.amazonmq.journal_files_for_fast_recovery{…}`
+**CW (ActiveMQ classic only):** **Broker Metrics → JournalFilesForFastRecovery** (Maximum) → **Number** widget.
+**RabbitMQ:** **not available** (engine doesn’t have KahaDB journals).
+
+---
+
+# 14) “Unclean shutdown” (journal files for full recovery)
+
+**DD:** `max:aws.amazonmq.journal_files_for_full_recovery{…}`
+**CW (ActiveMQ classic only):** **Broker Metrics → JournalFilesForFullRecovery** (Maximum) → **Number**.
+**RabbitMQ:** **not available**.
+
+---
+
+# 15) “Broker message latency per destination (ms)”
+
+**DD:** `avg:aws.amazonmq.enqueue_time{…} by {topic/queue}`
+**CW:** **Queue Metrics by Virtual Host → EnqueueTime** (Average, ms) → **Line**.
+
+---
+
+# 16) “Total messages sent to consumers”
+
+**DD:** `sum:aws.amazonmq.dispatch_count{…} by {topic/queue}.as_count()`
+**CW:** **Queue Metrics by Virtual Host → DispatchCount** (Sum) → **Bars**.
+
+---
+
+# 17) “Avg memory limit usage per destination (%)”
+
+**DD:** `avg:aws.amazonmq.memory_usage{…} by {topic}`
+**CW (ActiveMQ classic):** **Queue Metrics by Virtual Host → MemoryUsage** (Average, %) → **Area**.
+**RabbitMQ:** per-destination memory % typically **not exposed**; replace with available per-destination counters (e.g., **MessageReadyCount** / **MessageUnacknowledgedCount**) or omit.
+
+---
+
+# 18–20) The three small time-series you added at the bottom
+
+* **Ack rate:** `sum:aws.amazonmq.ack_rate{*}.as_count()` → **Broker Metrics → AckRate** (Sum) → **Line**
+* **Publish rate:** `sum:aws.amazonmq.publish_rate{*}.as_count()` → **Broker Metrics → PublishRate** (Sum) → **Line**
+* **Enqueue time:** `avg:aws.amazonmq.enqueue_time{*}` → **Broker Metrics → EnqueueTime** (Average) → **Line**
+
+---
+
+## Engine differences to watch (most common blockers)
+
+* **ActiveMQ classic** exposes: `StorageUsedPercentage`, `HeapUsage`, `JournalFiles*`, `QueueSize`, `MemoryUsage` per destination.
+* **RabbitMQ** exposes: `RabbitMQDiskFree*`, `RabbitMQMem*`, **no Heap/Journal/QueueSize**. Use **metric math** or nearest equivalents as noted above.
+
+---
+
+## Want me to hand you a ready CloudWatch **dashboard JSON**?
+
+I can generate one that:
+
+* Creates every widget above (with the math expressions where needed),
+* Targets your broker (e.g., `strata-uat-rabbitmq-mq-lmursoa`),
+* Groups the layout exactly like your DD.
+
+Say the **broker ID** and a couple **destinations** you want included by default, and I’ll drop in the JSON you can paste into **Dashboard → Actions → View/edit source**.
