@@ -1,24 +1,69 @@
-sum:aws.amazonmq.ack_rate{*}.as_count()
+Broker 21/21
+	
+Metric name
+	
+Alarms
 
-Storage limit usage per broker (%)
-
-
-
-avg:aws.amazonmq.enqueue_time{*}
-sum:aws.amazonmq.publish_rate{*}.as_count()
-
-
-
-Total messages sent per destination
-
-
-
-Producers per destination
-Total messages received per destination
-
-Subscribed consumers per destination
-
-
-
-
-
+strata-uat-rabbitmq-mq-lmursoa
+RabbitMQMemUsed
+3 alarm(s)
+strata-uat-rabbitmq-mq-lmursoa
+NetworkIn
+No alarms
+strata-uat-rabbitmq-mq-lmursoa
+MessageUnacknowledgedCount
+No alarms
+strata-uat-rabbitmq-mq-lmursoa
+MessageCount
+No alarms
+strata-uat-rabbitmq-mq-lmursoa
+RabbitMQIOWriteAverageTime
+No alarms
+strata-uat-rabbitmq-mq-lmursoa
+ChannelCount
+No alarms
+strata-uat-rabbitmq-mq-lmursoa
+NetworkOut
+No alarms
+strata-uat-rabbitmq-mq-lmursoa
+RabbitMQDiskFree
+3 alarm(s)
+strata-uat-rabbitmq-mq-lmursoa
+ExchangeCount
+No alarms
+strata-uat-rabbitmq-mq-lmursoa
+ConfirmRate
+No alarms
+strata-uat-rabbitmq-mq-lmursoa
+ConnectionCount
+No alarms
+strata-uat-rabbitmq-mq-lmursoa
+AckRate
+No alarms
+strata-uat-rabbitmq-mq-lmursoa
+RabbitMQMemLimit
+No alarms
+strata-uat-rabbitmq-mq-lmursoa
+QueueCount
+No alarms
+strata-uat-rabbitmq-mq-lmursoa
+SystemCpuUtilization
+3 alarm(s)
+strata-uat-rabbitmq-mq-lmursoa
+RabbitMQDiskFreeLimit
+No alarms
+strata-uat-rabbitmq-mq-lmursoa
+ConsumerCount
+No alarms
+strata-uat-rabbitmq-mq-lmursoa
+RabbitMQIOReadAverageTime
+No alarms
+strata-uat-rabbitmq-mq-lmursoa
+PublishRate
+No alarms
+strata-uat-rabbitmq-mq-lmursoa
+MessageReadyCount
+No alarms
+strata-uat-rabbitmq-mq-lmursoa
+RabbitMQFdUsed
+No alarms
