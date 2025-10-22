@@ -1,0 +1,6 @@
+fields @timestamp, @message
+| filter environment = "prod"
+| filter service = "payment-service"
+| filter @logLevel in ["ERROR", "WARN"]
+| sort @timestamp desc
+| limit 50
