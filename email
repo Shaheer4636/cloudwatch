@@ -1,0 +1,27 @@
+Subject: IAM Role and Permissions Required for CloudWatch APM Enablement
+
+Hi Nathan,
+
+As part of our transition from Datadog to CloudWatch for monitoring and APM, we need to enable the full observability stack on the Strata EKS clusters before October 31. This requires creating (or updating) an IAM role with the appropriate permissions for the CloudWatch observability add-ons.
+
+These add-ons — CloudWatch Observability, Fluent Bit, and OpenTelemetry (ADOT) — are responsible for sending metrics, logs, and traces to CloudWatch Application Signals and AWS X-Ray. Without the correct IAM policies attached, the clusters will not be able to publish APM data once Datadog is decommissioned.
+
+Required IAM Policies:
+
+CloudWatchAgentServerPolicy
+
+CloudWatchAgentAdminPolicy
+
+AWSXRayDaemonWriteAccess
+
+CloudWatchLogsFullAccess (for Fluent Bit)
+
+AmazonPrometheusRemoteWriteAccess (if Prometheus metrics are enabled)
+
+This role can be attached either to the EKS node IAM role or to a dedicated service account for these add-ons. Once in place, it will ensure that application and infrastructure telemetry flows correctly into CloudWatch and Application Signals, maintaining full visibility after the Datadog phase-out.
+
+Please let me know if you’d like me to provide the IAM policy JSON or coordinate the update with the platform team.
+
+Best regards,
+Muhammad Shaheer
+DevOps Engineer
